@@ -1,0 +1,28 @@
+{
+  "summary": { "numResults": 3 },
+  "results": [
+    {
+      "type": "POI",
+      "id": "synthetic-charger-1",
+      "poi": { "name": "WAYLINGO_CANARY_1 Charging Park", "brands": [{ "name": "WAYLINGO_CANARY_2 Charge" }] },
+      "address": { "freeformAddress": "WAYLINGO_CANARY_3 Street 1" },
+      "position": { "lat": 52.281, "lon": 7.42 },
+      "detourTime": 95,
+      "detourDistance": 1200
+    },
+    {
+      "type": "POI",
+      "id": "synthetic-charger-2",
+      "poi": { "name": "WAYLINGO_CANARY_4 Hub" },
+      "position": { "lat": 52.29, "lon": 7.61 },
+      "detourTime": 240,
+      "detourDistance": 3100
+    },
+    {
+      "type": "POI",
+      "poi": { "name": "WAYLINGO_CANARY_5 No Id" },
+      "position": { "lat": 999, "lon": 7.7 },
+      "detourTime": 10
+    }
+  ]
+}
