@@ -1,0 +1,162 @@
+Designing a formal specification before writing code is the smartest move for an open-source library—especially when dealing with multiple map vendors that all name things differently.A Technical Specification (RFC-style) is structured below so you can use it as the foundation for your GitHub repo (SPEC.md) and brainstorm edge cases.Technical Specification: OpenGeoAgent (Working Title)Version: 0.1.0-draftGoal: A provider-agnostic geospatial intent parser and spatial-temporal orchestration engine for AI agents, supporting Google Maps, HERE Maps, and TomTom.1. System Architecture Overview[User Natural Language]
+        │
+        ▼
+┌───────────────────────────────┐
+│  1. Intent Parser (LLM/AST)   │  ──▶ Outputs deterministic JSON Execution Plan
+└───────────────────────────────┘
+        │
+        ▼
+┌───────────────────────────────┐
+│  2. Spatial Orchestrator      │  ──▶ Resolves dependencies, slices polylines,
+│     (Execution Engine)        │      calculates time/distance anchors
+└───────────────────────────────┘
+        │
+        ▼
+┌───────────────────────────────┐
+│  3. Provider Adapter Layer    │  ──▶ Translates unified calls to Google / HERE / TomTom
+└───────────────────────────────┘
+        │
+        ▼
+[Unified GeoJSON + LLM Summary]
+2. Core Data Models (The Execution Plan)When the Intent Parser processes a query, it must output a strict Execution Plan. To handle multi-step dependencies (e.g., "stop at a fuel station 40 mins in, then find a McDonald's 10 km before Berlin"), the plan uses a Directed Acyclic Graph (DAG) or ordered pipeline.2.1 Top-Level Request SchemaJSON{
+  "plan_id": "uuid-v4",
+  "mode": "navigate_and_search", // "search_only" | "route_only" | "navigate_and_search"
+  "preferences": {
+    "transport_mode": "car",     // "car" | "ev" | "truck" | "walk" | "bike"
+    "avoid": ["tolls"],          // ["tolls", "highways", "ferries"]
+    "max_detour_minutes": 10     // Prevents suggesting a POI 30 mins off the highway
+  },
+  "route": {
+    "origin": { "type": "current_location", "coords": [52.3702, 4.8952] },
+    "destination": { "type": "place_query", "value": "Berlin, Germany" },
+    "explicit_waypoints": [
+      { "type": "place_query", "value": "Dusseldorf, Germany" }
+    ]
+  },
+  "triggers": [
+    {
+      "id": "trig_1",
+      "intent": "find_poi",
+      "query": "fuel station",
+      "category": "fuel",
+      "anchor": {
+        "reference": "origin",     // "origin" | "destination" | "waypoint_0" | "route"
+        "relation": "after",       // "before" | "after" | "every" | "around"
+        "metric": "duration",      // "distance" | "duration"
+        "value": 40,
+        "unit": "minutes"          // "km" | "m" | "miles" | "minutes" | "hours"
+      },
+      "filters": {
+        "open_now": true,
+        "min_rating": 4.0,
+        "brand": null
+      },
+      "resolution_strategy": "auto_select_best" // "auto_select_best" | "return_top_n"
+    }
+  ]
+}
+3. Brainstorming Critical Edge Cases (Where Map APIs Break)When designing the Spatial Orchestrator, these are the 5 hardest problems you need to specify upfront:Edge Case 1: The "Off-Highway Detour" TrapThe Problem: At 40 minutes into a drive from Amsterdam to Berlin, the user is on the A1 highway. A naive radius search (radius=5km) around that coordinate might find a gas station 4.5 km away in a small village—requiring a 15-minute detour through local streets.The Spec Solution:Use Along-Route Search / Corridor Search where supported (HERE and TomTom both have native search along route endpoints; Google has searchAlongRoute in the newer Places API).Always rank results by Detour Cost (new_total_duration - original_total_duration), NOT straight-line Haversine distance.Edge Case 2: Cascading Trigger DependenciesThe Problem: User says: "Drive to Berlin, stop for fuel 40 mins after starting, and find a McDonald's 10 km before Berlin."The Spec Solution:If trig_1 (auto_select_best) adds a 10-minute stop for fuel, the total route geometry might change slightly.Rule: Execute triggers sequentially when resolution_strategy == "auto_select_best", recalculating the route after each mandatory waypoint insertion. Execute in parallel when resolution_strategy == "return_top_n" (read-only suggestions).Edge Case 3: Ambiguous Units & Human PhrasingThe Problem: Users say "halfway there", "near the border", or "around lunchtime".The Spec Solution: Define canonical mappings in the Intent Parser prompt:"Halfway there" $\rightarrow$ {"reference": "route", "relation": "at_percentage", "value": 50}"Around lunchtime" $\rightarrow$ Convert using departure time (e.g., depart 09:00 $\rightarrow$ lunch at 12:30 $\rightarrow$ after 210 minutes)."Before reaching city" $\rightarrow$ Map to reference: "destination", relation: "before".Edge Case 4: Repeating Intervals ("every 100 km")The Problem: A 650 km trip has 6 intervals (100, 200, 300, 400, 500, 600 km). If there is no fuel station at exactly 200 km (e.g., rural stretch), returning an empty list fails the user.The Spec Solution: Define a Search Window Tolerance (e.g., $\pm 15\%$ of the interval). For every 100 km, search a corridor between 85 km and 115 km and pick the best-rated station with the lowest detour time.Edge Case 5: Token Bloat in Agent ResponsesThe Problem: Raw responses from Google Places or HERE Routing can be 50KB+ of nested JSON (encoded polylines, opening hours arrays, review metadata), instantly blowing up the calling agent's context window.The Spec Solution: Return a dual-format payload:agent_summary: Compact, token-optimized JSON (~300 tokens) with names, detour minutes, distance from anchor, and IDs.raw_geojson: Full geometry/metadata stored separately or passed directly to the frontend UI map component without passing through the LLM.4. Provider Normalization MatrixYour adapter interface must normalize the differences between your three target APIs:CapabilityGoogle Maps PlatformHERE Maps APITomTom Maps APIPOI SearchPlaces API (New) searchTextGeocoding & Search discoverSearch API fuzzySearchAlong-Route SearchsearchText + searchAlongRouteParametersbrowse / discover with route corridorsearchAlongRoute (native endpoint)Routing + Step TimesRoutes API computeRoutes (returns legs[].steps[])Routing v8 (returns sections[] + spans[])Routing API calculateRoute (returns legs[].points[] + sections)Polyline FormatEncoded Polyline (Precision 5)Flexible Polyline (Custom encoding)Raw [lat, lon] arrayKey Architectural Insight: HERE uses Flexible Polylines, Google uses Encoded Polylines, and TomTom returns JSON coordinate arrays. Your adapter layer MUST normalize all three into standard GeoJSON LineString ([longitude, latitude]) immediately upon receipt so the Spatial Orchestrator only ever speaks one geometry format.5. Proposed Plugin / Configuration Spec (geoagent.config.yaml)Allow users of your open-source repo to mix and match providers based on cost, accuracy, or regional strength (e.g., HERE is super strong in Europe/Germany; Google has the best POI reviews):YAMLproviders:
+  google:
+    api_key: ${GOOGLE_MAPS_API_KEY}
+  here:
+    api_key: ${HERE_API_KEY}
+  tomtom:
+    api_key: ${TOMTOM_API_KEY}
+
+routing_strategy:
+  default_router: "here"          # Best European traffic/lane data
+  fallback_router: "tomtom"
+  default_search: "google"        # Best POI ratings & brand matching
+  fallback_search: "here"
+
+orchestrator:
+  default_detour_tolerance_mins: 10
+  interval_window_percent: 0.15
+  output_format: "compact_json"   # "compact_json" | "geojson" | "both"
+6. Key Questions to Finalize Before CodingTo lock down v0.1 of your spec, decide on these four design choices:Language Choice: Python (best for AI/LangChain/LlamaIndex ecosystems, pydantic + shapely) or TypeScript (best for MCP servers, web apps, zod + @turf/turf)?LLM Coupling: Should the Intent Parser live inside your library (taking an OpenAI/Anthropic/Ollama client), or should your library purely export the JSON Schema + Orchestrator so any external agent framework can call it as a tool? (Tip: Exporting the schema + orchestrator as the core, with an optional parser wrapper, makes it way easier to adopt).Stateful vs. Stateless: Will the engine track the user's live moving GPS coordinate over time (stateful session), or evaluate one-shot queries from a starting point (stateless)?EV Charging vs. Fuel: Since you're building for European routes (Amsterdam $\rightarrow$ Cologne/Berlin/Paris), adding native EV charger filters (connector type, kW speed) to the schema early will make the project 10x more relevant in Europe.
+
+1. The Problem Statement
+AI agents are blind to spatial-temporal context.
+While modern LLMs can easily book a calendar event or summarize a PDF, they fail at real-world navigation queries like "Drive me from Amsterdam to Berlin, find a fast EV charger 40 minutes into the trip, and grab a McDonald's 10 km before we arrive."
+Today, developers building location-aware agents face three major roadblocks:
+
+1. Fragmented Vendor APIs: Google Maps, HERE, and TomTom each use incompatible schemas, different polyline encodings (Google Encoded vs. HERE Flexible vs. TomTom JSON), and completely different pricing/rate-limit models.
+2. Lack of Spatial-Temporal Math: Standard Maps APIs take static coordinates (lat, lng)—they do not natively understand relative human conditions like "30 minutes before reaching the city" or "every 100 km along my route."
+3. Token Bloat & Brittle Glue Code: Developers waste weeks writing custom geometry-slicing scripts and stripping 50KB+ of raw JSON payloads just to keep their LLM context window from overflowing.
+
+Our Solution: An open-source, provider-agnostic Geospatial Intent & Orchestration Layer that turns natural language navigation constraints into deterministic multi-vendor API execution plans—returning clean, token-optimized routes and waypoints ready for any AI agent.
+2. Real-World Use Case: "The Cross-Border Road Trip Assistant"
+Scenario
+A user is driving an electric vehicle (EV) from Amsterdam, Netherlands to Berlin, Germany (~650 km) and asks their in-car AI assistant:
+"Navigate to Berlin, avoid tolls, find me a fast EV charger every 200 km, and stop at a McDonald's about 15 minutes before we enter Berlin."
+Why a Standard LLM + Single Map API Fails Here
+
+* If the LLM simply searches Google Places for "McDonald's Berlin", it might pick one in East Berlin—adding 25 minutes of city traffic to the trip.
+* If it searches "EV charger" without slicing the route, it returns chargers near Amsterdam instead of spacing them every 200 km along the A1/A2 autobahn.
+* If the developer is locked into Google Maps, they might miss HERE's superior European highway/EV charging metadata—or get hit with unexpected API costs.
+
+How Your Project Solves It (Step-by-Step Trace)
+Step 1: Intent Parsing (Natural Language $\rightarrow$ Structured AST) Your parser extracts the route and converts the human phrasing into deterministic triggers:
+JSON
+{
+  "route": {
+    "origin": "Amsterdam, NL",
+    "destination": "Berlin, DE",
+    "avoid": ["tolls"]
+  },
+  "triggers": [
+    {
+      "id": "ev_stops",
+      "category": "ev_charging_station",
+      "filters": { "min_power_kw": 150 },
+      "anchor": { "reference": "route", "relation": "every", "metric": "distance", "value": 200, "unit": "km" }
+    },
+    {
+      "id": "food_stop",
+      "query": "McDonald's",
+      "anchor": { "reference": "destination", "relation": "before", "metric": "duration", "value": 15, "unit": "minutes" }
+    }
+  ]
+}
+
+Step 2: Multi-Provider Execution (Best-of-Breed Routing)
+
+* Base Route: Calls HERE Routing API (configured as default for Europe) to get the baseline Amsterdam $\rightarrow$ Berlin polyline and traffic-aware segment durations (6 hrs 20 mins, 654 km).
+* Trigger 1 (every 200 km): Slices the normalized GeoJSON polyline at the 200 km (near Osnabrück) and 400 km (near Hannover) marks, querying TomTom EV Search for 150kW+ chargers with < 3 min highway detour.
+* Trigger 2 (15 mins before Berlin): Walks backward 900 seconds of driving time from Berlin along the A115 highway, landing near Potsdam, and queries Google Places API for open McDonald's locations right off the exit.
+
+Step 3: Token-Optimized Agent Output Instead of dumping 12,000 lines of raw JSON back to the LLM, your engine returns a clean summary:
+JSON
+{
+  "status": "success",
+  "total_distance_km": 661,
+  "total_duration_mins": 398,
+  "planned_stops": [
+    {
+      "trigger": "ev_stops (200 km mark)",
+      "name": "Fastned Osnabrück-Nord",
+      "detour_mins": 2,
+      "coords": [52.312, 8.045]
+    },
+    {
+      "trigger": "ev_stops (400 km mark)",
+      "name": "Ionity Lehrte-West (A2)",
+      "detour_mins": 1,
+      "coords": [52.378, 9.951]
+    },
+    {
+      "trigger": "food_stop (15 mins before Berlin)",
+      "name": "McDonald's Dreilinden (A115 Exit)",
+      "detour_mins": 3,
+      "rating": 4.2,
+      "coords": [52.411, 13.198]
+    }
+  ]
+}
+
+3. Who Uses This Open-Source Project? (Target Personas)
+When pitching this on GitHub, Hacker News, or Reddit (r/LocalLLaMA, r/LangChain), highlight these three user groups:
+
+1. AI Agent Developers (MCP / LangChain / CrewAI): Want a drop-in tool so their agent can answer complex travel, logistics, or field-service queries without writing GIS math.
+2. Fleet & Logistics Startups: Need to switch dynamically between HERE, TomTom, and Google Maps for cost optimization or regional accuracy without rewriting their core routing logic.
+3. Automotive & Travel App Builders: Building voice-first co-pilots where drivers speak naturally ("Find coffee 20 minutes ahead on my route") rather than typing addresses into a touchscreen.
