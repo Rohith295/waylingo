@@ -301,6 +301,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "waylingo-providers"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror",
+ "waylingo-geo",
+ "waylingo-http",
+ "waylingo-plan",
+]
+
+[[package]]
 name = "zmij"
 version = "1.0.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
