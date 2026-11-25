@@ -21,3 +21,9 @@ dynamic = ["version"]
 bindings = "uniffi"
 module-name = "waylingo"
 features = ["bindgen"]
+
+# No software bill of materials in the wheels: it would copy the names and email
+# addresses of every dependency's authors into the package.
+[tool.maturin.sbom]
+rust = false
+auditwheel = false
