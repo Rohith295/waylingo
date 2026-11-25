@@ -1,0 +1,23 @@
+[build-system]
+requires = ["maturin>=1.9,<2"]
+build-backend = "maturin"
+
+[project]
+name = "waylingo"
+description = "Natural-language trip requests to routes with stops, as GeoJSON. Bring your own map provider and LLM."
+requires-python = ">=3.9"
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+authors = [{ name = "Waylingo contributors" }]
+keywords = ["routing", "geojson", "llm", "navigation", "maps", "ev-charging"]
+classifiers = [
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: GIS",
+]
+dynamic = ["version"]
+
+[tool.maturin]
+bindings = "uniffi"
+module-name = "waylingo"
+features = ["bindgen"]

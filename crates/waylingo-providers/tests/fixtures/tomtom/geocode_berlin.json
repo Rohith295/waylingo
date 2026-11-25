@@ -1,0 +1,7 @@
+{
+  "summary": { "query": "berlin", "numResults": 2 },
+  "results": [
+    { "type": "Geography", "score": 9.8, "address": { "freeformAddress": "WAYLINGO_CANARY_6 Berlin" }, "position": { "lat": 52.52, "lon": 13.405 } },
+    { "type": "Geography", "score": 4.1, "address": { "freeformAddress": "WAYLINGO_CANARY_7 Berlin, NH" }, "position": { "lat": 44.468, "lon": -71.185 } }
+  ]
+}

@@ -13,3 +13,12 @@ unsafe_code = "forbid"
 
 [workspace.lints.clippy]
 all = { level = "warn", priority = -1 }
+
+# Smaller, faster libraries for apps. Unwinding stays on: the bindings turn a panic
+# into an error instead of aborting the host app.
+[profile.release]
+lto = true
+codegen-units = 1
+# Keep the symbol table: uniffi-bindgen reads the binding metadata from it, and
+# on Linux a full strip removes it ("No UniFFI metadata found").
+strip = "debuginfo"

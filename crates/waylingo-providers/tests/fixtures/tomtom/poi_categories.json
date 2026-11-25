@@ -1,0 +1,9 @@
+{
+  "poiCategories": [
+    { "id": 9000001, "name": "Electric Vehicle Station", "childCategoryIds": [], "synonyms": ["EV Charging Station"] },
+    { "id": 9000002, "name": "Petrol Station", "childCategoryIds": [], "synonyms": ["Gas Station"] },
+    { "id": 9000003, "name": "Restaurant", "childCategoryIds": [9000004], "synonyms": [] },
+    { "id": 9000004, "name": "Fast Food", "childCategoryIds": [], "synonyms": [] },
+    { "id": 9000005, "name": "Café/Pub", "childCategoryIds": [], "synonyms": ["Coffee Shop"] }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "formatVersion": "0.0.12",
+  "routes": [
+    {
+      "summary": {
+        "lengthInMeters": 654000,
+        "travelTimeInSeconds": 23400,
+        "trafficDelayInSeconds": 300,
+        "departureTime": "2026-11-24T09:00:00+01:00",
+        "arrivalTime": "2026-11-24T15:30:00+01:00"
+      },
+      "legs": [
+        {
+          "summary": { "lengthInMeters": 654000, "travelTimeInSeconds": 23400 },
+          "points": [
+            { "latitude": 52.370200, "longitude": 4.895200 },
+            { "latitude": 52.300000, "longitude": 6.000000 },
+            { "latitude": 52.270000, "longitude": 7.500000 },
+            { "latitude": 52.350000, "longitude": 9.700000 },
+            { "latitude": 52.300000, "longitude": 11.600000 },
+            { "latitude": 52.420000, "longitude": 13.100000 },
+            { "latitude": 52.520000, "longitude": 13.405000 }
+          ]
+        }
+      ],
+      "guidance": {
+        "instructions": [
+          { "routeOffsetInMeters": 0, "travelTimeInSeconds": 0, "pointIndex": 0 },
+          { "routeOffsetInMeters": 210000, "travelTimeInSeconds": 7200, "pointIndex": 2 },
+          { "routeOffsetInMeters": 600000, "travelTimeInSeconds": 19800, "pointIndex": 5 },
+          { "routeOffsetInMeters": 654000, "travelTimeInSeconds": 23400, "pointIndex": 6 }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+# Names of the generated bindings.
+[bindings.swift]
+module_name = "Waylingo"
+ffi_module_name = "WaylingoFFI"
+ffi_module_filename = "WaylingoFFI"
+
+[bindings.kotlin]
+package_name = "io.waylingo"
+cdylib_name = "waylingo_ffi"
