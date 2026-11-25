@@ -8,23 +8,27 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SurfaceIntent {
+    /// Set to "not_understood" when the text is not a trip request or the wanted
+    /// stop or place cannot be told; leave everything else empty then.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
     /// Start place. Omit or use "current_location" for where the user is now.
     /// Use "saved:<name>" for a saved place such as "saved:home". Otherwise, the
     /// place name exactly as the user said it, e.g. "Amsterdam".
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub origin: Option<String>,
     /// Destination in the same forms as origin. Omit only if the user is already
     /// driving to a destination and did not name a new one.
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub destination: Option<String>,
     /// Places the user wants to pass through, in order, same forms as origin.
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub waypoints: Vec<String>,
     /// Things to avoid. Allowed: "tolls", "highways", "ferries".
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub avoid: Vec<String>,
     /// Largest detour the user accepts for a stop, if they said one.
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub max_detour: Option<Quantity>,
     /// The stops the user asked for.
     #[serde(default)]
@@ -45,12 +49,12 @@ pub struct Quantity {
 #[serde(deny_unknown_fields)]
 pub struct SurfaceStop {
     /// Short id such as "charger" or "food". Optional.
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
     pub what: SurfaceWhat,
     pub anchor: SurfaceAnchor,
     /// How many options to return for this stop (1 to 5). Optional.
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub top_n: Option<u8>,
 }
 
@@ -60,19 +64,20 @@ pub struct SurfaceStop {
 pub struct SurfaceWhat {
     /// One of: "ev_charging", "fuel", "restaurant", "fast_food", "coffee",
     /// "rest_area", "hotel", "parking", "supermarket", "pharmacy".
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub category: Option<String>,
     /// Free text when no category fits, e.g. "bakery".
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub text: Option<String>,
-    /// Brand or chain name if the user named one, e.g. "McDonald's".
-    #[serde(default)]
+    /// A name the user gave (chain, brand or specific place), exactly as written, e.g.
+    /// "McDonald's". Do not guess a category for it; the map search finds the name.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub brand: Option<String>,
     /// For chargers: minimum power in kW, if the user said one.
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub min_power_kw: Option<f64>,
     /// For chargers: connector types. Allowed: "ccs1", "ccs2", "chademo", "type1", "type2", "nacs".
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub connector_types: Vec<String>,
 }
 
