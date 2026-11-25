@@ -73,6 +73,19 @@ pub fn decode_here(encoded: &str) -> Result<Vec<LatLng>, GeoError> {
     })
 }
 
+/// Encode a line as a HERE Flexible Polyline (2D, precision 5).
+///
+/// # Errors
+/// Returns [`GeoError::Decode`] if the encoder rejects the input.
+pub fn encode_here(points: &[LatLng]) -> Result<String, GeoError> {
+    flexpolyline::Polyline::Data2d {
+        coordinates: points.iter().map(|p| (p.lat, p.lng)).collect(),
+        precision2d: flexpolyline::Precision::Digits5,
+    }
+    .encode()
+    .map_err(|e| GeoError::Decode(format!("flexible polyline encode: {e:?}")))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -112,6 +125,26 @@ mod tests {
         let pts = decode_here("BVoz5xJ67i1BU1B7PUzIhaUxL7YU").unwrap();
         assert_eq!(pts.len(), 4);
         assert!(close(pts[0], 50.102_28, 8.698_21, 1e-5));
+    }
+
+    #[test]
+    fn here_encode_round_trips() {
+        let pts = vec![
+            LatLng::new(50.10228, 8.69821),
+            LatLng::new(50.09878, 8.68752),
+        ];
+        let enc = encode_here(&pts).unwrap();
+        let back = decode_here(&enc).unwrap();
+        assert_eq!(back.len(), 2);
+        assert!(close(back[1], 50.09878, 8.68752, 1e-5));
+        // Spec vector: these four points encode to the documented string.
+        let spec = vec![
+            LatLng::new(50.1022829, 8.6982122),
+            LatLng::new(50.1020076, 8.6956695),
+            LatLng::new(50.1006313, 8.6914960),
+            LatLng::new(50.0987800, 8.6875156),
+        ];
+        assert_eq!(encode_here(&spec).unwrap(), "BFoz5xJ67i1B1B7PzIhaxL7Y");
     }
 
     #[test]

@@ -1,0 +1,21 @@
+[package]
+name = "waylingo-providers"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Map provider adapters for Waylingo: pure request builders and response parsers. Never depends on the LLM crate."
+
+[lints]
+workspace = true
+
+[dependencies]
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+thiserror = "2.0.21"
+waylingo-geo = { path = "../waylingo-geo" }
+waylingo-http = { path = "../waylingo-http" }
+waylingo-plan = { path = "../waylingo-plan" }
+
+[dev-dependencies]
+reqwest = { version = "0.13.5", features = ["blocking"] }

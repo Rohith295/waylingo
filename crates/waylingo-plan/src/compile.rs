@@ -10,11 +10,7 @@ use crate::{
     TripContext, What,
 };
 
-/// Longest interval or offset accepted: 5 000 km or 72 h.
-const MAX_DISTANCE_M: f64 = 5_000_000.0;
-const MAX_DURATION_S: f64 = 72.0 * 3600.0;
-const MAX_TOP_N: u8 = 5;
-const MAX_STOPS: usize = 10;
+use crate::validate::{MAX_DISTANCE_M, MAX_DURATION_S, MAX_STOPS, MAX_TOP_N};
 
 /// One validation problem, phrased so it can go straight into a repair prompt.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, thiserror::Error)]
@@ -25,15 +21,38 @@ pub struct PlanError {
     pub reason: String,
     /// Allowed values, when the field has a fixed set.
     pub allowed: Vec<String>,
+    /// Set when the problem is missing context that only the host or the end user
+    /// can supply. Such errors are not sent back to the LLM: it could only invent
+    /// the missing value.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub needs: Option<Need>,
+}
+
+/// Something missing that the LLM cannot supply.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Need {
+    /// Nothing was asked for: no destination, waypoint or stop. The text was not a
+    /// trip request, so the end user must rephrase.
+    Request,
+    /// The trip starts at (or refers to) the current location, but the host gave none.
+    CurrentLocation,
+    /// No destination was named and the host gave no active route.
+    Destination,
 }
 
 impl PlanError {
-    fn new(pointer: impl Into<String>, reason: impl Into<String>) -> Self {
+    pub(crate) fn new(pointer: impl Into<String>, reason: impl Into<String>) -> Self {
         Self {
             pointer: pointer.into(),
             reason: reason.into(),
             allowed: Vec::new(),
+            needs: None,
         }
+    }
+    fn needing(mut self, need: Need) -> Self {
+        self.needs = Some(need);
+        self
     }
     fn with_allowed<'a>(mut self, allowed: impl IntoIterator<Item = &'a str>) -> Self {
         self.allowed = allowed.into_iter().map(String::from).collect();
@@ -46,6 +65,21 @@ impl PlanError {
 /// # Errors
 /// A non-empty list of [`PlanError`]s when the intent cannot become a valid plan.
 pub fn compile(s: &SurfaceIntent, ctx: &TripContext) -> Result<Plan, Vec<PlanError>> {
+    if let Some(e) = &s.error {
+        return Err(vec![PlanError::new(
+            "/error",
+            format!("the request was reported as {e:?}"),
+        )]);
+    }
+    if s.destination.is_none() && s.waypoints.is_empty() && s.stops.is_empty() {
+        return Err(vec![
+            PlanError::new(
+                "",
+                "nothing was asked for: no destination, waypoint or stop",
+            )
+            .needing(Need::Request),
+        ]);
+    }
     let mut errs = Vec::new();
 
     let origin = place(s.origin.as_deref(), "/origin", ctx, &mut errs, Role::Origin);
@@ -91,9 +125,6 @@ pub fn compile(s: &SurfaceIntent, ctx: &TripContext) -> Result<Plan, Vec<PlanErr
         .or(ctx.max_detour_s)
         .unwrap_or(ctx.defaults.max_detour_s);
 
-    if s.stops.is_empty() {
-        errs.push(PlanError::new("/stops", "at least one stop is required"));
-    }
     if s.stops.len() > MAX_STOPS {
         errs.push(PlanError::new(
             "/stops",
@@ -115,23 +146,29 @@ pub fn compile(s: &SurfaceIntent, ctx: &TripContext) -> Result<Plan, Vec<PlanErr
         }
     }
 
-    match (origin, destination) {
-        (Some(origin), Some(destination)) if errs.is_empty() => Ok(Plan {
-            schema_version: SCHEMA_VERSION.to_string(),
-            origin,
-            destination,
-            waypoints,
-            departure: Departure {
-                time: ctx.departure_time.clone(),
-                timezone: ctx.timezone.clone(),
-            },
-            vehicle: ctx.vehicle.clone().unwrap_or_default(),
-            avoid,
-            max_detour_s,
-            stop_requests: stops,
-        }),
-        _ => Err(errs),
+    let (Some(origin), Some(destination)) = (origin, destination) else {
+        return Err(errs);
+    };
+    if !errs.is_empty() {
+        return Err(errs);
     }
+    let plan = Plan {
+        schema_version: SCHEMA_VERSION.to_string(),
+        origin,
+        destination,
+        waypoints,
+        departure: Departure {
+            time: ctx.departure_time.clone(),
+            timezone: ctx.timezone.clone(),
+        },
+        vehicle: ctx.vehicle.clone().unwrap_or_default(),
+        avoid,
+        max_detour_s,
+        stop_requests: stops,
+    };
+    // The same limits apply to plans read back from a previous result.
+    plan.validate()?;
+    Ok(plan)
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -154,7 +191,7 @@ fn current(
             label: Some("current_location".into()),
         }),
         _ => {
-            errs.push(PlanError::new(ptr, reason));
+            errs.push(PlanError::new(ptr, reason).needing(Need::CurrentLocation));
             None
         }
     }
@@ -175,19 +212,23 @@ fn place(
             errs,
             "the start is the current location, but the host did not provide one",
         ),
-        (None, Role::Destination) => {
-            match ctx.active_destination {
-                Some(c) if c.is_valid() => Some(Location::Coords {
-                    lat: c.lat,
-                    lng: c.lng,
-                    label: Some("active_destination".into()),
-                }),
-                _ => {
-                    errs.push(PlanError::new(ptr, "a destination is required: name one, or the host must pass an active route"));
-                    None
-                }
+        (None, Role::Destination) => match ctx.active_destination {
+            Some(c) if c.is_valid() => Some(Location::Coords {
+                lat: c.lat,
+                lng: c.lng,
+                label: Some("active_destination".into()),
+            }),
+            _ => {
+                errs.push(
+                    PlanError::new(
+                        ptr,
+                        "no destination was named and the host passed no active route",
+                    )
+                    .needing(Need::Destination),
+                );
+                None
             }
-        }
+        },
         (None, Role::Waypoint) => {
             errs.push(PlanError::new(ptr, "waypoint must not be empty"));
             None
@@ -786,7 +827,7 @@ mod tests {
     }
 
     #[test]
-    fn duplicate_ids_and_empty_stops() {
+    fn duplicate_stop_ids_rejected() {
         let mut s = reference_intent();
         s.stops[1].id = Some("charger".into());
         assert!(
@@ -795,9 +836,47 @@ mod tests {
                 .iter()
                 .any(|e| e.reason.contains("duplicate"))
         );
-        let mut s = reference_intent();
-        s.stops.clear();
-        assert_eq!(compile(&s, &ctx()).unwrap_err()[0].pointer, "/stops");
+    }
+
+    #[test]
+    fn destination_only_trip_compiles() {
+        let s: SurfaceIntent = serde_json::from_str(r#"{"destination":"Zeeduinweg 342"}"#).unwrap();
+        let plan = compile(&s, &ctx()).unwrap();
+        assert!(plan.stop_requests.is_empty());
+    }
+
+    #[test]
+    fn missing_host_context_is_marked() {
+        let s: SurfaceIntent = serde_json::from_str(r#"{"destination":"Utrecht"}"#).unwrap();
+        let no_location = TripContext {
+            current_location: None,
+            ..ctx()
+        };
+        let errs = compile(&s, &no_location).unwrap_err();
+        assert_eq!(errs[0].needs, Some(Need::CurrentLocation));
+
+        let s: SurfaceIntent = serde_json::from_str(
+            r#"{"stops":[{"what":{"category":"coffee"},"anchor":{"kind":"fraction","value":0.5}}]}"#,
+        )
+        .unwrap();
+        let errs = compile(&s, &ctx()).unwrap_err();
+        assert_eq!(errs[0].needs, Some(Need::Destination));
+
+        let empty: SurfaceIntent = serde_json::from_str("{}").unwrap();
+        assert_eq!(
+            compile(&empty, &ctx()).unwrap_err()[0].needs,
+            Some(Need::Request)
+        );
+
+        // Ordinary mistakes stay repairable.
+        let s: SurfaceIntent =
+            serde_json::from_str(r#"{"destination":"Utrecht","avoid":["lava"]}"#).unwrap();
+        assert!(
+            compile(&s, &ctx())
+                .unwrap_err()
+                .iter()
+                .all(|e| e.needs.is_none())
+        );
     }
 
     #[test]

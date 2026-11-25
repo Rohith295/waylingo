@@ -1,0 +1,45 @@
+# Nightly: the real map provider APIs, to notice provider-side changes (response
+# format, auth, endpoints) before users do. The LLM step is answered with a fixed
+# plan, so only map keys are needed. Statuses and counts only are printed; no
+# provider data and no keys reach the logs.
+#
+# Secrets: TOMTOM_API_KEY, HERE_API_KEY. Variable WAYLINGO_LIVE_REQUIRE lists the
+# providers that must have keys (default "tomtom,here").
+#
+# The LLM backends have their own live tests (crates/waylingo-ffi/tests/live.rs),
+# run by hand when needed.
+name: live
+
+on:
+  schedule:
+    - cron: "17 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: live
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  maps:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: TomTom raw responses
+        env:
+          WAYLINGO_TOMTOM_KEY: ${{ secrets.TOMTOM_API_KEY }}
+        run: cargo test -p waylingo-providers --test live_tomtom -- --ignored --nocapture
+      - name: Engine end to end against TomTom and HERE
+        env:
+          TOMTOM_API_KEY: ${{ secrets.TOMTOM_API_KEY }}
+          HERE_API_KEY: ${{ secrets.HERE_API_KEY }}
+          WAYLINGO_LIVE_REQUIRE: ${{ vars.WAYLINGO_LIVE_REQUIRE || 'tomtom,here' }}
+        run: cargo test -p waylingo-reqwest --test live_maps -- --ignored --test-threads 1 --nocapture
