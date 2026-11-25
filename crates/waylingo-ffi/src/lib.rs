@@ -79,7 +79,7 @@ impl Waylingo {
         let defaults = config.defaults();
         defaults
             .validate()
-            .map_err(|message| WaylingoError::InvalidConfig { message })?;
+            .map_err(|detail| WaylingoError::InvalidConfig { detail })?;
         let host = AsyncHost::new(
             Keys {
                 llm: llm_key.unwrap_or_default(),
