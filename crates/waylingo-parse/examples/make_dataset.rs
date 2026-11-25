@@ -172,7 +172,6 @@ fn places(r: Region) -> &'static [&'static str] {
             "Tallinn",
             "Riga",
             "Vilnius",
-            "Tower Bridge, London",
             "Rue de Rivoli, Paris",
             "Gran Via, Madrid",
             "Via del Corso, Rome",
@@ -248,8 +247,6 @@ fn places(r: Region) -> &'static [&'static str] {
             "Omaha",
             "Boise",
             "Anchorage",
-            "Lincoln Memorial, Washington DC",
-            "Terminal 3, New York",
             "Times Square",
             "the Golden Gate Bridge",
             "Hollywood Boulevard, Los Angeles",
@@ -261,7 +258,6 @@ fn places(r: Region) -> &'static [&'static str] {
             "O'Hare Airport",
             "Yosemite Valley",
             "Bourbon Street, New Orleans",
-            "Springfield",
             "the Space Needle",
             "Mount Rushmore",
             "Lake Tahoe",
@@ -690,7 +686,7 @@ fn street_name(r: Region, rng: &mut Rng) -> &'static str {
     })
 }
 
-/// An invented street address, e.g. "Maplewood".
+/// An invented street address: an invented street name and house number.
 fn address(r: Region, rng: &mut Rng) -> String {
     let n = 1 + rng.below(400);
     let s = street_name(r, rng);
@@ -724,7 +720,7 @@ fn address(r: Region, rng: &mut Rng) -> String {
             _ => format!("Plot {n}, {s} Road"),
         },
     };
-    // People often leave the town out ("drive me to branmont"). Half of all
+    // People often leave the town out ("drive me to <street> <number>"). Half of all
     // addresses do, so the model does not learn that a town always follows.
     if rng.chance(0.5) && !street.starts_with("Sector") {
         street

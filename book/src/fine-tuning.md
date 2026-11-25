@@ -13,8 +13,8 @@ places or brands; it copies them:
 * names are copied as written, and a name stays a name: "a McDonald's" becomes
   `brand: "McDonald's"`, not a category;
 * categories are used only for generic words ("a coffee", "somewhere to charge");
-* addresses are copied as written: "drive me to branmont" gives
-  `destination: "branmont"`;
+* unknown names are copied as written: "drive me to Branmont" gives
+  `destination: "Branmont"`, even though no such town exists;
 * text that is not a trip request gives `{"error":"not_understood","stops":[]}`.
 
 Finding the places is the map provider's job, so the model never needs to know where
