@@ -183,6 +183,11 @@ geometry to null) before sending a result back; the signature does not cover the
 
 ## Before publishing
 
-Not done yet: a wheel build matrix (manylinux, musllinux, macOS universal2,
-Windows) and sdist check for PyPI; a `Package.swift` with a checksummed binary
-target for SwiftPM; an AAR module and JVM natives for Maven; a compiled Kotlin test.
+`.github/workflows/release.yml` builds the wheels (manylinux, musllinux, macOS
+universal2, Windows) and sdist, the XCFramework for the root `Package.swift`, and
+the AAR from `android/`. It is a dry run unless started with `publish` on. CI
+compiles and tests the Kotlin bindings on the JVM.
+
+Not done yet: a first run of these workflows on GitHub (the Android module and the
+Kotlin test have not been built locally), and the PyPI trusted publisher, Maven
+Central namespace and signing key.
