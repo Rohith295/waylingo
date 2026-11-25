@@ -17,18 +17,26 @@ pub(crate) fn pct(s: &str) -> String {
     out
 }
 
-/// Build `base?k=v&k=v` with encoded values. Pairs with empty values are skipped.
+/// Build `base?k=v&k=v` with encoded names and values. Pairs with empty values are
+/// skipped. Names are encoded too: HERE rejects raw brackets such as
+/// `evStation[minPower]` with HTTP 400 (found against the live API).
 pub(crate) fn url(base: &str, params: &[(&str, String)]) -> String {
     let q: Vec<String> = params
         .iter()
         .filter(|(_, v)| !v.is_empty())
-        .map(|(k, v)| format!("{k}={}", pct(v)))
+        .map(|(k, v)| format!("{}={}", pct(k), pct(v)))
         .collect();
     if q.is_empty() {
         base.to_string()
     } else {
         format!("{base}?{}", q.join("&"))
     }
+}
+
+/// A stable id for a place the provider gave no id for: its position, rounded to
+/// about 10 cm.
+pub(crate) fn position_id(p: LatLng) -> String {
+    format!("pos:{:.6},{:.6}", p.lat, p.lng)
 }
 
 /// `lat,lng` with 6 decimals (about 0.1 m).
@@ -53,5 +61,9 @@ mod tests {
             "https://x/y?a=1%202"
         );
         assert_eq!(url("https://x/y", &[]), "https://x/y");
+        assert_eq!(
+            url("https://x/y", &[("avoid[features]", "tollRoad".into())]),
+            "https://x/y?avoid%5Bfeatures%5D=tollRoad"
+        );
     }
 }

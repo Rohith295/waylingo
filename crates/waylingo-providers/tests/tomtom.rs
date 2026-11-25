@@ -160,12 +160,14 @@ fn search_request_carries_filters_and_window() {
             }),
         },
         max_detour_s: 600,
+        corridor_m: 5_000,
         limit: 50,
     };
     let r = t.search_request("search-0".into(), &q);
     assert_eq!(r.method, "POST");
     for p in [
-        "searchAlongRoute/electric%20vehicle%20charging%20station.json",
+        // Category known: the query is "*" (text + categorySet returns nothing live).
+        "searchAlongRoute/%2A.json",
         "maxDetourTime=600",
         "limit=20",
         "sortBy=detourTime",
@@ -193,6 +195,7 @@ fn brand_search_quotes_brand() {
             ..What::default()
         },
         max_detour_s: 9_999,
+        corridor_m: 5_000,
         limit: 5,
     };
     let r = t.search_request("s".into(), &q);
@@ -201,7 +204,11 @@ fn brand_search_quotes_brand() {
         "{}",
         r.url
     );
-    assert!(r.url.contains("brandSet=%22McDonald%27s%22"), "{}", r.url);
+    assert!(
+        !r.url.contains("brandSet"),
+        "names are search text, not a chain filter: {}",
+        r.url
+    );
     assert!(
         r.url.contains("maxDetourTime=3600"),
         "clamped to TomTom's maximum"

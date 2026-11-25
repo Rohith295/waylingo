@@ -13,7 +13,7 @@ use waylingo_http::{AuthPlacement, CredentialSlot, Header, HttpRequest, HttpResp
 use waylingo_plan::{Avoid, Category, Connector};
 
 use crate::category::{provider_names, query_text};
-use crate::encode::{ll, pct, url};
+use crate::encode::{ll, pct, position_id, url};
 use crate::{
     Candidate, Capabilities, DetourStrategy, ErrorKind, GeocodeCandidate, ProviderAdapter,
     ProviderError, ProviderKind, RouteQuery, RouteResult, SearchQuery,
@@ -123,6 +123,7 @@ struct GeocodeResp {
 }
 #[derive(Deserialize)]
 struct GeocodeHit {
+    id: Option<String>,
     position: Pos,
     #[serde(default)]
     address: Address,
@@ -276,10 +277,14 @@ impl ProviderAdapter for TomTom {
         let r: GeocodeResp = parse_json(resp)?;
         Ok(r.results
             .into_iter()
-            .map(|h| GeocodeCandidate {
-                label: h.address.freeform.unwrap_or_default(),
-                position: LatLng::new(h.position.lat, h.position.lon),
-                score: h.score,
+            .map(|h| {
+                let position = LatLng::new(h.position.lat, h.position.lon);
+                GeocodeCandidate {
+                    id: h.id.unwrap_or_else(|| position_id(position)),
+                    label: h.address.freeform.unwrap_or_default(),
+                    position,
+                    score: h.score,
+                }
             })
             .filter(|c| c.position.is_valid())
             .collect())
@@ -388,7 +393,13 @@ impl ProviderAdapter for TomTom {
     }
 
     fn search_request(&self, id: String, q: &SearchQuery) -> HttpRequest {
-        let text = query_text(&q.what);
+        let category_id = q.what.category.and_then(|c| self.category_id(c));
+        // Found against the live API: free text plus `categorySet` returns no results,
+        // while `*` plus `categorySet` works. A brand name plus `categorySet` also works.
+        let text = match (&q.what.brand, category_id) {
+            (None, Some(_)) => "*".to_string(),
+            _ => query_text(&q.what),
+        };
         let base = format!(
             "{}/search/2/searchAlongRoute/{}.json",
             self.base,
@@ -400,12 +411,12 @@ impl ProviderAdapter for TomTom {
             ("sortBy", "detourTime".to_string()),
             ("spreadingMode", "auto".to_string()),
         ];
-        if let Some(cat) = q.what.category.and_then(|c| self.category_id(c)) {
+        if let Some(cat) = category_id {
             params.push(("categorySet", cat.to_string()));
         }
-        if let Some(b) = &q.what.brand {
-            params.push(("brandSet", format!("\"{}\"", b.replace('"', ""))));
-        }
+        // No `brandSet`: it only matches chains in TomTom's brand registry, so a local
+        // name ("Cafe de Jaren") would find nothing. The name as search text finds both
+        // chains (even misspelt, "macdonalds") and single places.
         if let Some(ev) = &q.what.ev {
             if let Some(kw) = ev.min_power_kw {
                 params.push(("minPowerKW", format!("{kw}")));
