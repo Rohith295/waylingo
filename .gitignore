@@ -13,3 +13,5 @@ waylingo-output*.geojson
 /finetune/data2/
 /finetune/data3/
 /finetune/release/
+/.venv-bindings/
+/bindings/
