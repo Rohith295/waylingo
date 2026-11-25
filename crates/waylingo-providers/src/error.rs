@@ -52,8 +52,43 @@ impl ProviderError {
         };
         Some(Self {
             kind,
-            message: format!("HTTP {s}"),
+            message: format!("HTTP {s}{}", error_detail(&resp.body)),
             retryable: resp.is_retryable(),
         })
     }
+}
+
+/// The provider's own error text (HERE `title`/`cause`, TomTom `errorText`,
+/// `detailedError.message`, or a generic `message`/`error`), cut to 300 characters.
+/// Words that look like keys or long tokens are masked.
+fn error_detail(body: &[u8]) -> String {
+    let v: serde_json::Value = serde_json::from_slice(body).unwrap_or_default();
+    let parts: Vec<&str> = [
+        v["title"].as_str(),
+        v["cause"].as_str(),
+        v["errorText"].as_str(),
+        v["detailedError"]["message"].as_str(),
+        v["error"]["message"].as_str(),
+        v["message"].as_str(),
+        v["error"].as_str(),
+    ]
+    .into_iter()
+    .flatten()
+    .collect();
+    if parts.is_empty() {
+        return String::new();
+    }
+    let masked: Vec<String> = parts
+        .join(" | ")
+        .split_whitespace()
+        .map(|w| {
+            if w.len() > 40 || w.to_ascii_lowercase().contains("apikey=") || w.contains("key=") {
+                "<redacted>".to_string()
+            } else {
+                w.to_string()
+            }
+        })
+        .collect();
+    let s: String = masked.join(" ").chars().take(300).collect();
+    format!(" ({s})")
 }

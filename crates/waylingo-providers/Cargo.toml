@@ -16,3 +16,6 @@ thiserror = "2.0.21"
 waylingo-geo = { path = "../waylingo-geo" }
 waylingo-http = { path = "../waylingo-http" }
 waylingo-plan = { path = "../waylingo-plan" }
+
+[dev-dependencies]
+reqwest = { version = "0.13.5", features = ["blocking"] }
