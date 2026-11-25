@@ -7,6 +7,10 @@ version = "0.1.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 rust-version = "1.85"
+repository = "https://github.com/Rohith295/waylingo"
+homepage = "https://rohith295.github.io/waylingo/"
+keywords = ["routing", "navigation", "llm", "geojson", "maps"]
+categories = ["science::geo", "api-bindings"]
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
