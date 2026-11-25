@@ -6,14 +6,12 @@ commands; this chapter explains the shape of the API and the choices behind it.
 
 ## Status
 
-As of this writing (`crates/waylingo-ffi/README.md`, `.github/workflows/ci.yml`):
-
 * **Python:** built and tested live; an offline test runs in CI.
 * **Swift (macOS):** built and tested live with `crates/waylingo-ffi/examples/swift/run.sh`.
 * **Kotlin:** CI compiles the generated bindings and runs offline tests on the JVM
-  (`crates/waylingo-ffi/tests/kotlin-jvm`). The bindings guide notes that this workflow
-  has not yet had a first run on GitHub.
-* **iOS and Android device builds:** documented, not yet verified end to end.
+  (`crates/waylingo-ffi/tests/kotlin-jvm`).
+* **iOS and Android:** the release workflow builds the iOS XCFramework and the Android
+  library (AAR); neither has yet been run in an app on a device.
 * **Packages:** none published. `Package.swift` holds placeholder URL and checksum values
   until the release workflow fills them in.
 

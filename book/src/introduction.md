@@ -17,8 +17,12 @@ The end user can then pick another place for a stop, skip a stop, or choose anot
 match for an ambiguous place name. Waylingo builds the new route from the previous
 result without calling the LLM again.
 
-Status: preview. The Rust engine, the TomTom and HERE adapters and the Python, Swift and
-Kotlin bindings exist and have tests; no package is published yet.
+Waylingo runs in **Android apps (Kotlin), iOS and macOS apps (Swift), Python and
+Rust**: the engine is written in Rust, and the same API is generated for the other
+three languages. [Quick start](quick-start.md) shows each one.
+
+Status: preview. The engine, the TomTom and HERE adapters and the Python, Swift and
+Kotlin bindings work and have tests; no package is published yet.
 
 ## The problem
 

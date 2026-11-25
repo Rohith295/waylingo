@@ -5,7 +5,7 @@
       "type": "POI",
       "id": "synthetic-charger-1",
       "poi": { "name": "WAYLINGO_CANARY_1 Charging Park", "brands": [{ "name": "WAYLINGO_CANARY_2 Charge" }] },
-      "address": { "freeformAddress": "WAYLINGO_CANARY_3 Street 1" },
+      "address": { "freeformAddress": "WAYLINGO_CANARY_3" },
       "position": { "lat": 52.281, "lon": 7.42 },
       "detourTime": 95,
       "detourDistance": 1200
