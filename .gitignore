@@ -15,3 +15,12 @@ waylingo-output*.geojson
 /finetune/release/
 /.venv-bindings/
 /bindings/
+/crates/waylingo-ffi/tests/kotlin-jvm/src/main/
+/crates/waylingo-ffi/tests/kotlin-jvm/build/
+/crates/waylingo-ffi/tests/kotlin-jvm/.gradle/
+/android/src/main/kotlin/
+/android/src/main/jniLibs/
+/android/build/
+/android/.gradle/
+/WaylingoFFI.xcframework*
+/.build/

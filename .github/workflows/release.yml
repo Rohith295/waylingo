@@ -1,0 +1,259 @@
+# Build every package, and publish only when asked.
+#
+# Run it from the Actions tab with a version (must match Cargo.toml's workspace
+# version). With "publish" off (the default) it is a dry run: everything is built
+# and kept as workflow artifacts, nothing leaves GitHub. With "publish" on, it also
+# commits Package.swift, tags the release, creates the GitHub Release, and publishes
+# to PyPI and Maven Central. Each publish job runs in a GitHub environment
+# ("pypi", "maven-central") that can require a manual approval.
+#
+# Set-up before the first real publish:
+#   * PyPI: add this repository as a trusted publisher for the "waylingo" project
+#     (environment "pypi"); no token is stored.
+#   * Maven Central: a verified namespace (WAYLINGO_GROUP variable, for example
+#     io.github.<owner>), and secrets MAVEN_CENTRAL_USERNAME, MAVEN_CENTRAL_PASSWORD,
+#     SIGNING_KEY, SIGNING_KEY_PASSWORD in the "maven-central" environment.
+name: release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, for example 0.1.0"
+        required: true
+      publish:
+        description: "Publish (off = dry run: build only)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: The version matches Cargo.toml
+        env:
+          WANT: ${{ inputs.version }}
+        run: |
+          have=$(grep -m1 '^version' Cargo.toml | cut -d'"' -f2)
+          test "$have" = "$WANT" || { echo "Cargo.toml has $have, asked for $WANT"; exit 1; }
+
+  python:
+    needs: check
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, target: x86_64, manylinux: auto }
+          - { os: ubuntu-latest, target: aarch64, manylinux: auto }
+          - { os: ubuntu-latest, target: x86_64, manylinux: musllinux_1_2 }
+          - { os: ubuntu-latest, target: aarch64, manylinux: musllinux_1_2 }
+          - { os: macos-14, target: universal2-apple-darwin, manylinux: "" }
+          - { os: windows-latest, target: x64, manylinux: "" }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: PyO3/maturin-action@v1
+        with:
+          working-directory: crates/waylingo-ffi
+          target: ${{ matrix.target }}
+          manylinux: ${{ matrix.manylinux }}
+          args: --release --out dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheel-${{ strategy.job-index }}
+          path: crates/waylingo-ffi/dist
+
+  python-sdist:
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: PyO3/maturin-action@v1
+        with:
+          working-directory: crates/waylingo-ffi
+          command: sdist
+          args: --out dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sdist
+          path: crates/waylingo-ffi/dist
+
+  apple:
+    needs: check
+    runs-on: macos-14
+    outputs:
+      checksum: ${{ steps.zip.outputs.checksum }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios,aarch64-apple-ios-sim,x86_64-apple-ios,aarch64-apple-darwin,x86_64-apple-darwin
+      - name: Build the static libraries
+        run: |
+          for t in aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios aarch64-apple-darwin x86_64-apple-darwin; do
+            cargo build -p waylingo-ffi --release --target "$t"
+          done
+      - name: Generate the Swift bindings
+        run: |
+          cargo run -p waylingo-ffi --features bindgen --bin uniffi-bindgen -- generate \
+            --library target/aarch64-apple-ios/release/libwaylingo_ffi.a --language swift --out-dir bindings/swift
+          mkdir -p bindings/headers swift/Sources/Waylingo
+          cp bindings/swift/WaylingoFFI.h bindings/headers/
+          cp bindings/swift/WaylingoFFI.modulemap bindings/headers/module.modulemap
+          cp bindings/swift/Waylingo.swift swift/Sources/Waylingo/Waylingo.swift
+      - name: Build the XCFramework
+        run: |
+          mkdir -p target/ios-sim target/macos
+          lipo -create target/aarch64-apple-ios-sim/release/libwaylingo_ffi.a \
+            target/x86_64-apple-ios/release/libwaylingo_ffi.a -output target/ios-sim/libwaylingo_ffi.a
+          lipo -create target/aarch64-apple-darwin/release/libwaylingo_ffi.a \
+            target/x86_64-apple-darwin/release/libwaylingo_ffi.a -output target/macos/libwaylingo_ffi.a
+          xcodebuild -create-xcframework \
+            -library target/aarch64-apple-ios/release/libwaylingo_ffi.a -headers bindings/headers \
+            -library target/ios-sim/libwaylingo_ffi.a -headers bindings/headers \
+            -library target/macos/libwaylingo_ffi.a -headers bindings/headers \
+            -output WaylingoFFI.xcframework
+      - id: zip
+        name: Zip it and compute the SwiftPM checksum
+        run: |
+          zip -qry WaylingoFFI.xcframework.zip WaylingoFFI.xcframework
+          echo "checksum=$(swift package compute-checksum WaylingoFFI.xcframework.zip)" >> "$GITHUB_OUTPUT"
+      - name: Check that the Swift package compiles against the local XCFramework
+        run: |
+          sed -i '' 's|\.binaryTarget(name: "WaylingoFFI", url: "[^"]*", checksum: "[^"]*")|.binaryTarget(name: "WaylingoFFI", path: "WaylingoFFI.xcframework")|' Package.swift
+          grep -q 'path: "WaylingoFFI.xcframework"' Package.swift
+          swift build
+          git checkout Package.swift
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apple
+          path: |
+            WaylingoFFI.xcframework.zip
+            swift/Sources/Waylingo/Waylingo.swift
+
+  android:
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.10"
+      - name: Build the native libraries
+        run: |
+          export ANDROID_NDK_HOME="$ANDROID_NDK_LATEST_HOME"
+          cargo install cargo-ndk --locked
+          cargo ndk -t arm64-v8a -t armeabi-v7a -t x86_64 -o android/src/main/jniLibs \
+            build -p waylingo-ffi --release
+      - name: Generate the Kotlin bindings
+        run: |
+          cargo build -p waylingo-ffi --release
+          cargo run -p waylingo-ffi --features bindgen --bin uniffi-bindgen -- generate \
+            --library target/release/libwaylingo_ffi.so --language kotlin --no-format \
+            --out-dir android/src/main/kotlin
+      - name: Build the AAR
+        working-directory: android
+        run: gradle assembleRelease -PwaylingoVersion="${{ inputs.version }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: android/build/outputs/aar/*.aar
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-sources
+          path: |
+            android/src/main/kotlin
+            android/src/main/jniLibs
+
+  release:
+    if: inputs.publish
+    needs: [python, python-sdist, apple, android]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Point Package.swift at this release, commit the Swift sources, tag
+        env:
+          VERSION: ${{ inputs.version }}
+          CHECKSUM: ${{ needs.apple.outputs.checksum }}
+          REPO: ${{ github.repository }}
+        run: |
+          url="https://github.com/$REPO/releases/download/v$VERSION/WaylingoFFI.xcframework.zip"
+          sed -i "s|url: \"[^\"]*\"|url: \"$url\"|; s|checksum: \"[^\"]*\"|checksum: \"$CHECKSUM\"|" Package.swift
+          mkdir -p swift/Sources/Waylingo
+          cp artifacts/apple/swift/Sources/Waylingo/Waylingo.swift swift/Sources/Waylingo/
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Package.swift swift/Sources/Waylingo/Waylingo.swift
+          git commit -m "Release v$VERSION"
+          git tag "v$VERSION"
+          git push origin HEAD "v$VERSION"
+      - name: Create the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          gh release create "v$VERSION" --title "v$VERSION" --generate-notes \
+            artifacts/apple/WaylingoFFI.xcframework.zip artifacts/android/*.aar
+
+  publish-pypi:
+    needs: release
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: "{wheel-*,sdist}"
+          merge-multiple: true
+          path: dist
+      - uses: pypa/gh-action-pypi-publish@release/v1
+
+  publish-maven:
+    needs: release
+    runs-on: ubuntu-latest
+    environment: maven-central
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: android-sources
+          path: android/src/main
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.10"
+      - name: Publish to Maven Central
+        working-directory: android
+        env:
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_KEY_PASSWORD }}
+          VERSION: ${{ inputs.version }}
+          GROUP: ${{ vars.WAYLINGO_GROUP }}
+        run: >
+          gradle publishAndReleaseToMavenCentral --no-configuration-cache
+          -PwaylingoVersion="$VERSION" -PwaylingoGroup="$GROUP"
