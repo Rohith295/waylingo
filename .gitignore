@@ -1,3 +1,15 @@
 /target
 **/*.rs.bk
 .DS_Store
+.env
+.env.*
+waylingo-output*.geojson
+/finetune/data/
+/finetune/adapters/
+/finetune/models/
+/finetune/.venv/
+/finetune/logs/
+/finetune/results/
+/finetune/data2/
+/finetune/data3/
+/finetune/release/
