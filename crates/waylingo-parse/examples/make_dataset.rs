@@ -172,15 +172,7 @@ fn places(r: Region) -> &'static [&'static str] {
             "Tallinn",
             "Riga",
             "Vilnius",
-            "Rue de Rivoli, Paris",
-            "Gran Via, Madrid",
-            "Via del Corso, Rome",
             "Nyhavn, Copenhagen",
-            "Damrak, Amsterdam",
-            "Avenida da Liberdade, Lisbon",
-            "Princes Street, Edinburgh",
-            "Grafton Street, Dublin",
-            "La Rambla, Barcelona",
             "Gare du Nord, Paris",
             "King's Cross Station",
             "Schiphol Airport",
@@ -249,7 +241,6 @@ fn places(r: Region) -> &'static [&'static str] {
             "Anchorage",
             "Times Square",
             "the Golden Gate Bridge",
-            "Hollywood Boulevard, Los Angeles",
             "Pike Place Market, Seattle",
             "Navy Pier, Chicago",
             "Grand Canyon Village",
@@ -257,7 +248,6 @@ fn places(r: Region) -> &'static [&'static str] {
             "LAX",
             "O'Hare Airport",
             "Yosemite Valley",
-            "Bourbon Street, New Orleans",
             "the Space Needle",
             "Mount Rushmore",
             "Lake Tahoe",
@@ -319,15 +309,11 @@ fn places(r: Region) -> &'static [&'static str] {
             "Bhubaneswar",
             "Raipur",
             "Patna",
-            "MG Road, Bengaluru",
-            "Marine Drive, Mumbai",
             "Connaught Place, New Delhi",
             "Bandra Kurla Complex, Mumbai",
             "Koramangala, Bengaluru",
             "Indiranagar, Bengaluru",
             "Hitech City, Hyderabad",
-            "Park Street, Kolkata",
-            "Anna Salai, Chennai",
             "Baga Beach, Goa",
             "India Gate",
             "the Taj Mahal",
@@ -460,8 +446,8 @@ fn text_places(r: Region) -> &'static [(&'static str, &'static str)] {
 // ---------- invented names (teach copying, not recall) ----------
 //
 // Real place and brand lists are small, so a model can memorise them. Invented towns,
-// street addresses, landmarks and brands give thousands of names the model can only
-// get right by copying them from the request.
+// landmarks and brands give thousands of names the model can only get right by
+// copying them from the request. No street addresses are generated.
 
 thread_local! {
     /// Lowercased places and brands used in training; the unseen set avoids them.
@@ -592,8 +578,7 @@ fn invented_town(r: Region, rng: &mut Rng) -> String {
     }
 }
 
-/// A short town name for addresses and landmarks: a real one-or-two-word place or an
-/// invented one.
+/// A short town name for landmarks: a real one-or-two-word place or an invented one.
 fn town(r: Region, rng: &mut Rng) -> String {
     if rng.chance(0.5) {
         let short: Vec<&str> = pool_places(r)
@@ -615,7 +600,8 @@ fn town(r: Region, rng: &mut Rng) -> String {
     coined(r, rng)
 }
 
-fn street_name(r: Region, rng: &mut Rng) -> &'static str {
+/// A name for invented parks, squares and markets ("Victoria Park").
+fn park_name(r: Region, rng: &mut Rng) -> &'static str {
     rng.pick(match r {
         Region::Europe => &[
             "Victoria",
@@ -686,55 +672,12 @@ fn street_name(r: Region, rng: &mut Rng) -> &'static str {
     })
 }
 
-/// An invented street address: an invented street name and house number.
-fn address(r: Region, rng: &mut Rng) -> String {
-    let n = 1 + rng.below(400);
-    let s = street_name(r, rng);
-    let t = town(r, rng);
-    let street = match r {
-        Region::Europe => match rng.below(12) {
-            0 => format!("{n} {s} Road"),
-            1 => format!("{n} {s} Street"),
-            2 => format!("Via {s} {n}"),
-            3 => format!("Rue {s} {n}"),
-            4 => format!("{s}straat {n}"),
-            5 => format!("{s}weg {n}"),
-            6 => format!("{}weg {n}", coined(r, rng)),
-            7 => format!("{}straat {n}", coined(r, rng)),
-            8 => format!("{}gracht {n}", coined(r, rng)),
-            9 => format!("{}laan {n}", coined(r, rng)),
-            10 => format!("{}strasse {n}", coined(r, rng)),
-            _ => format!("{s}gatan {n}"),
-        },
-        Region::Us => format!(
-            "{n} {s} {}",
-            rng.pick(&[
-                "St", "Street", "Ave", "Avenue", "Blvd", "Road", "Drive", "Lane"
-            ])
-        ),
-        Region::India => match rng.below(5) {
-            0 => format!("{n} {s} Road"),
-            1 => format!("{s} Marg"),
-            2 => format!("Sector {}", 1 + rng.below(80)),
-            3 => format!("{s} Nagar"),
-            _ => format!("Plot {n}, {s} Road"),
-        },
-    };
-    // People often leave the town out ("drive me to <street> <number>"). Half of all
-    // addresses do, so the model does not learn that a town always follows.
-    if rng.chance(0.5) && !street.starts_with("Sector") {
-        street
-    } else {
-        format!("{street}, {t}")
-    }
-}
-
 /// An invented landmark, e.g. "Rampur Railway Station", "Sunset Plaza".
 fn landmark(r: Region, rng: &mut Rng) -> String {
     if rng.chance(0.3) {
         return format!(
             "{} {}",
-            street_name(r, rng),
+            park_name(r, rng),
             rng.pick(&["Park", "Square", "Market", "Plaza", "Gardens"])
         );
     }
@@ -779,7 +722,7 @@ fn landmark(r: Region, rng: &mut Rng) -> String {
     format!("{} {}", town(r, rng), rng.pick(kinds))
 }
 
-/// A trip place: a real one from the pool, or an invented town, address or landmark.
+/// A trip place: a real one from the pool, or an invented town or landmark.
 /// In the unseen set, never a place used in training.
 fn pick_place(r: Region, rng: &mut Rng) -> String {
     for _ in 0..50 {
@@ -788,8 +731,7 @@ fn pick_place(r: Region, rng: &mut Rng) -> String {
                 let all = pool_places(r);
                 rng.pick(&all).to_string()
             }
-            45..=64 => invented_town(r, rng),
-            65..=89 => address(r, rng),
+            45..=74 => invented_town(r, rng),
             _ => landmark(r, rng),
         };
         if !holdout() || !seen_in_training(&p) {

@@ -1,11 +1,140 @@
 # Quick start
 
-Two minimal programs that plan one trip: one in Rust, one in Python. Both need a
-TomTom key and an Anthropic key in the environment. No package is published yet, so
-both build Waylingo from the repository.
+Waylingo is a Rust library with the same API in Python, Swift and Kotlin, so it runs
+in Android and iOS apps, on servers and in scripts:
 
-The output contains map provider content (place names, addresses). Show it to the end
-user; do not send it to an LLM.
+| Where | Language | Install after the first release | Until then |
+| :--- | :--- | :--- | :--- |
+| Android | Kotlin | Gradle: `io.github.rohith295:waylingo-android` | [build the AAR](#android-kotlin) |
+| iOS, macOS | Swift | Swift Package: `https://github.com/Rohith295/waylingo` | [build the XCFramework](#ios-and-macos-swift) |
+| Servers, scripts | Python | `pip install waylingo` | [build with maturin](#python) |
+| Anything in Rust | Rust | crates `waylingo` and `waylingo-reqwest` | [Git dependency](#rust) |
+
+No package is published yet; each section below shows how to build from the
+repository today. Every example plans one trip and needs a map key (TomTom here) and
+an LLM key (Anthropic here). See [Keys in shipped apps](bindings.md#keys-in-shipped-apps)
+before putting keys in an app.
+
+The output contains map provider content (place names). Show it to the end user; do
+not send it to an LLM.
+
+## Python
+
+Build and install the bindings from a checkout (needs Rust):
+
+```bash
+cd crates/waylingo-ffi
+pip install maturin
+maturin develop --release
+```
+
+```python
+import os
+import waylingo as w
+
+app = w.Waylingo(
+    w.WaylingoConfig(
+        map_provider=w.MapProvider.TOMTOM,
+        llm=w.LlmBackend.ANTHROPIC(model=None, base_url=None),
+    ),
+    map_key=os.environ["TOMTOM_API_KEY"],
+    llm_key=os.environ["LLM_API_KEY"],
+)
+
+out = app.plan_blocking(w.TripInput(
+    query="Drive to Utrecht, coffee halfway",
+    current_location=w.LatLng(lat=52.3702, lng=4.8952),
+))
+
+if out.status == w.TripStatus.FAILED:
+    print("failed:", out.error_code, out.error_message)
+else:
+    print(out.status, len(out.stops), "stops,", out.map_calls, "map calls")
+    print(out.attribution)
+```
+
+`model=None` uses the default Anthropic model; set it explicitly in shipped apps.
+In async code use `await app.plan(...)`.
+
+After the first release: `pip install waylingo`.
+
+## iOS and macOS (Swift)
+
+After the first release, add the package in Xcode (File > Add Package Dependencies)
+with the URL `https://github.com/Rohith295/waylingo` and a version, or in
+`Package.swift`:
+
+```swift
+.package(url: "https://github.com/Rohith295/waylingo", from: "0.1.0")
+// and in the target: .product(name: "Waylingo", package: "waylingo")
+```
+
+Until then, build the XCFramework from a checkout as described in the
+[bindings guide](https://github.com/Rohith295/waylingo/blob/main/crates/waylingo-ffi/README.md#swift-ios-macos)
+and add it and `Waylingo.swift` to the app.
+
+```swift
+import Waylingo
+
+let app = try Waylingo(
+    config: WaylingoConfig(mapProvider: .tomtom, llm: .anthropic(model: nil, baseUrl: nil)),
+    mapKey: tomtomKey, llmKey: anthropicKey)
+
+// Inside an async context, never on the main thread's blocking path:
+let out = try await app.plan(trip: TripInput(
+    query: "Drive to Utrecht, coffee halfway",
+    currentLocation: LatLng(lat: 52.3702, lng: 4.8952)))
+
+if out.status == .failed {
+    print("failed:", String(describing: out.errorCode))
+} else {
+    print(out.status, out.stops.count, "stops")
+}
+```
+
+The minimum versions are iOS 15 and macOS 12.
+
+## Android (Kotlin)
+
+After the first release, add the library in `build.gradle.kts`:
+
+```kotlin
+dependencies {
+    implementation("io.github.rohith295:waylingo-android:0.1.0")
+}
+```
+
+It brings JNA and kotlinx-coroutines with it. Until then, build the native libraries
+and the Kotlin source from a checkout as described in the
+[bindings guide](https://github.com/Rohith295/waylingo/blob/main/crates/waylingo-ffi/README.md#kotlin-android-jvm).
+
+The app needs the internet permission in `AndroidManifest.xml`:
+
+```xml
+<uses-permission android:name="android.permission.INTERNET" />
+```
+
+```kotlin
+import io.waylingo.*
+
+val app = Waylingo(
+    WaylingoConfig(mapProvider = MapProvider.TOMTOM, llm = LlmBackend.Anthropic(null, null)),
+    mapKey = tomtomKey, llmKey = anthropicKey)
+
+// plan is a suspend function: call it from a coroutine, for example in a ViewModel.
+viewModelScope.launch {
+    val out = app.plan(TripInput(
+        query = "Drive to Utrecht, coffee halfway",
+        currentLocation = LatLng(52.3702, 4.8952)))
+    if (out.status == TripStatus.FAILED) {
+        Log.w("trip", "failed: ${out.errorCode}")
+    } else {
+        Log.i("trip", "${out.stops.size} stops")
+    }
+}
+```
+
+The minimum Android version is 7.0 (API 24).
 
 ## Rust
 
@@ -73,42 +202,9 @@ anything you ship: a provider may retire it.
 A fuller command-line example, with EV and search settings, is
 `crates/waylingo-reqwest/examples/plan.rs`.
 
-## Python
+## Next
 
-Build and install the bindings from a checkout (needs Rust):
-
-```bash
-cd crates/waylingo-ffi
-pip install maturin
-maturin develop --release
-```
-
-```python
-import os
-import waylingo as w
-
-app = w.Waylingo(
-    w.WaylingoConfig(
-        map_provider=w.MapProvider.TOMTOM,
-        llm=w.LlmBackend.ANTHROPIC(model=None, base_url=None),
-    ),
-    map_key=os.environ["TOMTOM_API_KEY"],
-    llm_key=os.environ["LLM_API_KEY"],
-)
-
-out = app.plan_blocking(w.TripInput(
-    query="Drive to Utrecht, coffee halfway",
-    current_location=w.LatLng(lat=52.3702, lng=4.8952),
-))
-
-if out.status == w.TripStatus.FAILED:
-    print("failed:", out.error_code, out.error_message)
-else:
-    print(out.status, len(out.stops), "stops,", out.map_calls, "map calls")
-    print(out.attribution)
-```
-
-`model=None` uses the default Anthropic model; set it explicitly in shipped apps.
-In async code use `await app.plan(...)`. The full API, rerouting, and Swift and Kotlin
-are in [Bindings](bindings.md); what to do with each `error_code` is in
-[Errors](errors.md).
+* [Bindings](bindings.md): the full API, rerouting after the end user's choices, and
+  async versus blocking calls.
+* [Errors](errors.md): what to do with each `error_code`.
+* [The fine-tuned parser](fine-tuning.md): running without an LLM key.

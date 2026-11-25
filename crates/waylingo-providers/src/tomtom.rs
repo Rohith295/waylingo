@@ -415,7 +415,7 @@ impl ProviderAdapter for TomTom {
             params.push(("categorySet", cat.to_string()));
         }
         // No `brandSet`: it only matches chains in TomTom's brand registry, so a local
-        // name ("Cafe de Jaren") would find nothing. The name as search text finds both
+        // name (a single local café) would find nothing. The name as search text finds both
         // chains (even misspelt, "macdonalds") and single places.
         if let Some(ev) = &q.what.ev {
             if let Some(kw) = ev.min_power_kw {

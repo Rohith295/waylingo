@@ -2,7 +2,7 @@
 
 * **Author:** Rohith295
 * **Date:** 2026-11-24
-* **Status:** Brainstorm brief (pre-RFC). Source use case: `~/Downloads/usecase.txt`.
+* **Status:** Brainstorm brief (pre-RFC). Source use case: `docs/usecase.txt`.
 
 ## Overview
 

@@ -62,13 +62,13 @@ evaluate() {
     return
   fi
   log "eval $name: starting server on port $PORT"
-  $VENV/mlx_lm.server --model "$model" --adapter-path "$adapters" --host 127.0.0.1 --port "$PORT" \
+  $VENV/mlx_lm.server --model "$model" --adapter-path "$adapters" --host localhost --port "$PORT" \
     > "finetune/logs/server-$name.log" 2>&1 &
   local pid=$!
   # Ready only when our server answers with an OpenAI-style model list (the port was free before we started it).
   local ready=0
   for _ in $(seq 1 120); do
-    if curl -sf "http://127.0.0.1:$PORT/v1/models" | grep -q "\"object\""; then ready=1; break; fi
+    if curl -sf "http://localhost:$PORT/v1/models" | grep -q "\"object\""; then ready=1; break; fi
     kill -0 "$pid" 2>/dev/null || break
     sleep 5
   done
@@ -78,12 +78,12 @@ evaluate() {
     return
   fi
   # One warm-up request so model load time is not counted as latency.
-  curl -s -o /dev/null "http://127.0.0.1:$PORT/v1/chat/completions" -H 'Content-Type: application/json' \
+  curl -s -o /dev/null "http://localhost:$PORT/v1/chat/completions" -H 'Content-Type: application/json' \
     -d '{"model":"default_model","messages":[{"role":"user","content":"hi"}],"max_tokens":4}' 
   # The server answers with the model it loaded (plus adapters) for "default_model".
   for set in test test_unseen; do
     log "eval $name on $set"
-    EVAL_BASE_URL=http://127.0.0.1:$PORT/v1 EVAL_MODEL=default_model \
+    EVAL_BASE_URL=http://localhost:$PORT/v1 EVAL_MODEL=default_model \
       "$EVAL" 1000 "finetune/data/$set.jsonl" > "$RES/$name-$set.txt" 2>&1
     grep "^TOTAL" "$RES/$name-$set.txt" | sed "s/^/  $name $set: /" | tee -a "$LOG"
   done

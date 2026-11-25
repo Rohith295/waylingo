@@ -83,7 +83,7 @@ the GGUF file, and point Waylingo at it with `fine_tuned` set:
 
 ```kotlin
 val llm = LlmBackend.OpenAiCompatible(
-    baseUrl = "http://127.0.0.1:8765/v1", model = "default", fineTuned = true)
+    baseUrl = "http://localhost:8765/v1", model = "default", fineTuned = true)
 ```
 
 `fine_tuned` (`fineTuned` in Kotlin) sends the one-line prompt the model was trained on

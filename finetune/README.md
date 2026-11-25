@@ -63,8 +63,8 @@ of the two.
 
 ```bash
 finetune/.venv/bin/mlx_lm.server --model Qwen/Qwen3-0.6B --adapter-path finetune/adapters/qwen3-0.6b --port 8765
-EVAL_BASE_URL=http://127.0.0.1:8765/v1 cargo run -q -p waylingo-reqwest --example eval_parser -- 1000 finetune/data/test.jsonl
-EVAL_BASE_URL=http://127.0.0.1:8765/v1 cargo run -q -p waylingo-reqwest --example eval_parser -- 1000 finetune/data/test_unseen.jsonl
+EVAL_BASE_URL=http://localhost:8765/v1 cargo run -q -p waylingo-reqwest --example eval_parser -- 1000 finetune/data/test.jsonl
+EVAL_BASE_URL=http://localhost:8765/v1 cargo run -q -p waylingo-reqwest --example eval_parser -- 1000 finetune/data/test_unseen.jsonl
 ```
 
 "Same plan" is the number that matters: the model's JSON compiles to exactly the
@@ -78,7 +78,7 @@ environment):
 
 ```text
 LLM_PROVIDER=openai
-LLM_BASE_URL=http://127.0.0.1:8765/v1
+LLM_BASE_URL=http://localhost:8765/v1
 LLM_MODEL=default
 LLM_MODE=prompt_json
 LLM_PROMPT=compact

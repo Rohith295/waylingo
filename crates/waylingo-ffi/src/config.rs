@@ -295,7 +295,7 @@ mod tests {
         assert_eq!(proxied.llm.mode, LlmMode::JsonSchema);
 
         let c = cfg(LlmBackend::OpenAiCompatible {
-            base_url: "http://127.0.0.1:8765/v1".into(),
+            base_url: "http://localhost:8765/v1".into(),
             model: "default".into(),
             fine_tuned: true,
         })

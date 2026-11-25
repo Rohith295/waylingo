@@ -146,8 +146,11 @@ mod tests {
             "rishikesh"
         );
         assert_eq!(
-            place("Drive to Gran Via, Madrid via Princes", "Granvia, Madrid"),
-            "Gran Via, Madrid"
+            place(
+                "Drive to Retiro Park, Madrid via Toledo",
+                "RetiroPark, Madrid"
+            ),
+            "Retiro Park, Madrid"
         );
         assert_eq!(
             place(
@@ -169,11 +172,8 @@ mod tests {
     fn keeps_exact_copies_and_trims_spaces() {
         assert_eq!(place("drive to Oslo now", "Oslo"), "Oslo");
         assert_eq!(
-            place(
-                "drive via Princes Street, Edinburgh",
-                " Princes Street, Edinburgh"
-            ),
-            "Princes Street, Edinburgh"
+            place("drive via Edinburgh Castle", " Edinburgh Castle"),
+            "Edinburgh Castle"
         );
     }
 
