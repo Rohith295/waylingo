@@ -21,7 +21,7 @@ not yet verified.
 1. The end user types or says a trip: "drive to Utrecht, coffee halfway".
 2. `plan` returns a `TripOutput`:
    * `status` (`COMPLETE`, `PARTIAL`, `FAILED`), `error_code`, `error_message`.
-     `NOT_UNDERSTOOD` means: ask the end user to rephrase.
+     See "Error codes" below. A trip may have no stops ("drive to Utrecht").
    * `stops`: for each requested stop, the `pick` and its `alternatives`.
    * `unresolved`: stops without a place, with a `reason`.
    * `locations`: origin, waypoints and destination, with `candidates` when the
@@ -142,6 +142,63 @@ val app = Waylingo(
 val out = app.plan(TripInput(query = "Drive to Utrecht, coffee halfway",
     currentLocation = LatLng(52.3702, 4.8952)))   // a suspend function
 ```
+
+## Errors
+
+A call either **throws** (the request or configuration is unusable, or it ran out of
+time) or **returns** a `TripOutput` whose `status` and `error_code` say how it went.
+
+### Thrown
+
+| Exception | When | What to do |
+| :--- | :--- | :--- |
+| `InvalidConfig` | Bad configuration: an empty key, a bad `base_url`, a timeout under 1 s | Fix the configuration |
+| `InvalidRequest` | Empty or over-long query; more than 50 saved places, or a name over 60 characters; coordinates out of range; settings out of range | Fix the input |
+| `IncompatibleResult` | `reroute` got something that is not a result from this server: another version, provider, or signing key; no plan | Plan again |
+| `UnknownChoice` | A choice names a stop, place or candidate the result did not offer | Rebuild the choices from the latest result |
+| `Timeout` | The query took longer than `timeout_ms` | Retry; raise `timeout_ms` if it happens often |
+| `Internal` | A bug in Waylingo | Report it with the message |
+
+### Returned: `error_code`
+
+When `status` is `FAILED`, `error_code` says why; `error_message` has detail for your
+logs. Codes are only ever added. In Swift and Kotlin the enum is exhaustive, so give
+`switch`/`when` a default branch, or a new Waylingo version will not compile against
+it. `UNKNOWN` stands in for a code from a newer version. `is_retryable(code)` and
+`needs_user(code)` group the codes; no code is in both groups.
+
+| Code | What happened | What the app should do | Retryable | Needs user |
+| :--- | :--- | :--- | :---: | :---: |
+| `NOT_UNDERSTOOD` | Not a trip request | Ask the end user to rephrase, with an example | | yes |
+| `NEEDS_DESTINATION` | No destination named and no active route passed. If the model left out a destination, it is asked once and may only use a place named in the request | Ask "where to?" | | yes |
+| `NEEDS_CURRENT_LOCATION` | The trip starts here, but `current_location` was not passed | Pass the location, or ask where to start | | yes |
+| `INVALID_PLAN` | The model's plan stayed invalid after the repairs | Ask to rephrase; if frequent, use a stronger model | | yes |
+| `NO_GEOCODE` | A place in the request was not found | Show the text and ask for a more precise one | | yes |
+| `NO_ROUTE` | No route between the places | Tell the end user; suggest other places | | yes |
+| `LLM_REFUSED` | The model declined the request | Ask to rephrase | | yes |
+| `LLM_AUTH` | LLM key wrong, expired, or without access to the model | Fix the key | | |
+| `LLM_QUOTA_EXCEEDED` | LLM account out of quota or credit | Add credit or raise the limit | | |
+| `LLM_RATE_LIMITED` | LLM still rate-limited after the retries | Retry later; raise your limit | yes | |
+| `LLM_BAD_REQUEST` | LLM rejected the request: often a wrong or retired model name, or a wrong `base_url` | Fix the configuration | | |
+| `LLM_BAD_RESPONSE` | The LLM answered in a format Waylingo cannot read | Check the endpoint is OpenAI-compatible; update Waylingo | | |
+| `LLM_UNAVAILABLE` | LLM 5xx or timeouts after the retries | Retry later | yes | |
+| `LLM_UNREACHABLE` | No connection to the LLM (network, DNS, TLS) | Check connectivity; on a phone, often no signal | yes | |
+| `PROVIDER_AUTH` | Map key wrong, expired, or missing a product. TomTom also uses 403 for some over-limit cases | Check the key and the plan's limits | | |
+| `PROVIDER_QUOTA_EXCEEDED` | The map provider said the quota is used up | Upgrade the plan or wait for the reset | | |
+| `PROVIDER_RATE_LIMITED` | Map provider still rate-limited after the retries | Retry later; lower `map_requests_per_second` | yes | |
+| `PROVIDER_BAD_REQUEST` | The map provider rejected a request | Report it with `error_message` | | |
+| `PROVIDER_BAD_RESPONSE` | The map provider answered in a format Waylingo cannot read | Update Waylingo | | |
+| `PROVIDER_UNAVAILABLE` | Map provider 5xx after the retries | Retry later | yes | |
+| `PROVIDER_UNREACHABLE` | No connection to the map provider (network, DNS, TLS) | Check connectivity, and proxies that intercept TLS | yes | |
+| `INTERNAL` | A bug in Waylingo | Report it with `error_message` | | |
+| `UNKNOWN` | A code from a newer Waylingo version | Treat as a generic failure | | |
+
+### A stop that was not found
+
+It does not fail the trip: `status` is `PARTIAL` and the stop is in `unresolved`
+with a `reason` (`NO_CANDIDATES`, `SKIPPED_BY_USER`, `SKIPPED_BUDGET`, `UNSUPPORTED`,
+`PROVIDER_ERROR`, `NOT_SEARCHED`). For `PROVIDER_ERROR`, `error_code` says what
+failed, with the same codes as above.
 
 ## Using it well
 

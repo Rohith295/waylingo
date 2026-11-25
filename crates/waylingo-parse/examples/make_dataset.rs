@@ -1735,6 +1735,115 @@ fn trip(rng: &mut Rng) -> Example {
     }
 }
 
+/// A trip with no stops: "take me to Zeeduinweg 342". The label is the places only,
+/// copied as written, with `"stops": []`.
+fn destination_only(rng: &mut Rng) -> Example {
+    let r = *rng.pick(&[Region::Europe, Region::Us, Region::India]);
+    let ctx = base_ctx(r, rng);
+    let mut intent = SurfaceIntent::default();
+    let roll = rng.below(100);
+    let mut question = false;
+    let mut text = if roll < 15 && !ctx.saved_places.is_empty() {
+        let s = ctx.saved_places[rng.below(ctx.saved_places.len())]
+            .name
+            .clone();
+        intent.destination = Some(format!("saved:{s}"));
+        saved_lead(rng, &s)
+    } else {
+        let d = pick_place(r, rng);
+        let o = loop {
+            let o = pick_place(r, rng);
+            if o != d {
+                break o;
+            }
+        };
+        intent.destination = Some(d.clone());
+        let mut lead = if roll < 35 {
+            intent.origin = Some(o.clone());
+            rng.pick(&[
+                format!("From {o} to {d}"),
+                format!("Drive from {o} to {d}"),
+                format!("Route from {o} to {d}"),
+                format!("{o} to {d}"),
+                format!("Starting at {o}, take me to {d}"),
+                format!("Directions from {o} to {d}"),
+                format!("Leaving {o}, heading to {d}"),
+            ])
+            .clone()
+        } else if roll < 45 {
+            question = true;
+            rng.pick(&[
+                format!("Can you take me to {d}?"),
+                format!("How do I get to {d}?"),
+                format!("Could you navigate to {d}?"),
+                format!("Can we go to {d}?"),
+                format!("Will you drive me to {d}?"),
+            ])
+            .clone()
+        } else if roll < 55 {
+            d.clone()
+        } else {
+            rng.pick(&[
+                format!("Drive to {d}"),
+                format!("Drive me to {d}"),
+                format!("Take me to {d}"),
+                format!("Navigate to {d}"),
+                format!("Directions to {d}"),
+                format!("Go to {d}"),
+                format!("Let's go to {d}"),
+                format!("Head to {d}"),
+                format!("I need to get to {d}"),
+                format!("I want to go to {d}"),
+                format!("Route to {d}"),
+                format!("Get me to {d}"),
+                format!("Set the destination to {d}"),
+                format!("{d} please"),
+                format!("Bring me to {d}"),
+            ])
+            .clone()
+        };
+        if !question && rng.chance(0.12) {
+            let w = loop {
+                let w = pick_place(r, rng);
+                if w != d && w != o {
+                    break w;
+                }
+            };
+            lead = format!(
+                "{lead} {} {w}",
+                rng.pick(&["via", "through", "passing through"])
+            );
+            intent.waypoints = vec![w];
+        }
+        lead
+    };
+    if !question && rng.chance(0.15) {
+        let (p, a): (&str, &[&str]) = *rng.pick(&[
+            ("avoiding tolls", &["tolls"][..]),
+            ("no toll roads", &["tolls"][..]),
+            ("avoid highways", &["highways"][..]),
+            ("no motorways", &["highways"][..]),
+            ("no ferries", &["ferries"][..]),
+            ("avoiding tolls and ferries", &["tolls", "ferries"][..]),
+        ]);
+        text = format!("{text}, {p}");
+        intent.avoid = a.iter().map(|x| (*x).to_string()).collect();
+    }
+    let names = label_names(&intent);
+    let text = roughen(rng, &text, &names);
+    let (user, lower) = noise(rng, &text, question, &names);
+    if lower {
+        lowercase_labels(&mut intent);
+    }
+    Example {
+        user,
+        intent,
+        ctx,
+        negative: false,
+        region: region_name(r),
+    }
+}
+
 fn negative(rng: &mut Rng) -> Example {
     let r = *rng.pick(&[Region::Europe, Region::Us, Region::India]);
     let city = rng.pick(places(r)).to_string();
@@ -1802,6 +1911,9 @@ fn negative(rng: &mut Rng) -> Example {
     }
 }
 
+/// Share of positive rows that name only places, with no stops.
+const DESTINATION_ONLY_RATE: f64 = 0.12;
+
 struct Gen {
     rng: Rng,
     seen: HashSet<String>,
@@ -1819,6 +1931,8 @@ impl Gen {
             attempts += 1;
             let ex = if self.rng.chance(negative_rate) {
                 negative(&mut self.rng)
+            } else if self.rng.chance(DESTINATION_ONLY_RATE) {
+                destination_only(&mut self.rng)
             } else {
                 trip(&mut self.rng)
             };

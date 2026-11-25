@@ -19,9 +19,11 @@ mod result;
 mod select;
 mod signing;
 
+mod error_code;
 pub use choices::{Choices, LocationChoice, LocationRole, StopChoice, StopPick};
 pub use config::{EngineConfig, Limits, ProviderChoice, SigningKey};
 pub use engine::{Engine, Session, Step, TripRequest, WaylingoError};
+pub use error_code::ErrorCode;
 pub use result::{
     AnchorEcho, Feature, Geometry, LocationCandidate, LocationProps, PlaceProps, Properties,
     RESULT_SCHEMA_VERSION, ResultError, RouteProps, SearchEcho, Status, StopProps, TripResult,

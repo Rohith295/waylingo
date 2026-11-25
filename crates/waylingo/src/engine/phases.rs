@@ -8,6 +8,7 @@ use waylingo_providers::{Candidate, DetourStrategy, RouteQuery, SearchQuery};
 
 use super::anchor::spec_for;
 use super::{Kind, Outcome, Session, Slot};
+use crate::ErrorCode;
 use crate::choices::StopPick;
 
 /// Candidates per stop sent to a travel-time matrix (HERE flexible mode allows 15 origins).
@@ -19,8 +20,16 @@ const MAX_ANCHORS_PER_STOP: usize = 30;
 const GEOCODE_CANDIDATES: usize = 5;
 
 impl Session {
-    /// Once-per-session provider requests (for example, category lists).
+    /// Once-per-session provider requests (for example, category lists). Only
+    /// searches need them, so a trip without stops makes none.
     pub(super) fn setup_requests(&mut self) -> Vec<HttpRequest> {
+        if self
+            .plan
+            .as_ref()
+            .is_none_or(|p| p.stop_requests.is_empty())
+        {
+            return vec![];
+        }
         let reqs = self.adapter.setup_requests("");
         reqs.into_iter()
             .map(|r| self.register(Kind::Setup, r))
@@ -62,7 +71,10 @@ impl Session {
             }
             Ok(_) => {
                 let text = self.place_text(i);
-                self.fail("NO_GEOCODE", format!("could not find a place for {text:?}"));
+                self.fail(
+                    ErrorCode::NoGeocode,
+                    format!("could not find a place for {text:?}"),
+                );
             }
             Err(e) => self.fail_provider(&e, "geocoding failed"),
         }
@@ -78,7 +90,7 @@ impl Session {
             .copied()
             .collect::<Option<Vec<LatLng>>>()
         else {
-            self.fail("NO_GEOCODE", "a place could not be resolved");
+            self.fail(ErrorCode::NoGeocode, "a place could not be resolved");
             return vec![];
         };
         let q = RouteQuery {

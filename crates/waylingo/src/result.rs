@@ -55,7 +55,7 @@ pub enum Status {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ResultError {
-    pub code: String,
+    pub code: crate::ErrorCode,
     pub message: String,
 }
 
@@ -229,6 +229,10 @@ pub struct UnresolvedProps {
     pub anchor: Option<AnchorEcho>,
     pub window: Option<WindowEcho>,
     pub result: UnresolvedReason,
+    /// For `PROVIDER_ERROR`: what went wrong, as for a failed trip (for example
+    /// `PROVIDER_RATE_LIMITED` to retry, `PROVIDER_AUTH` to fix the key).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error_code: Option<crate::ErrorCode>,
     pub detail: Option<String>,
     /// For a stop the end user skipped: the places that were offered, so it can be
     /// brought back with a choice. Empty otherwise.

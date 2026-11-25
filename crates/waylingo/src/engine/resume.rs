@@ -11,6 +11,7 @@ use waylingo_plan::{Location, SCHEMA_VERSION, TripContext};
 use waylingo_providers::{Candidate, GeocodeCandidate};
 
 use super::{Engine, Outcome, Phase, Session, Slot, Step, WaylingoError};
+use crate::ErrorCode;
 use crate::choices::{Choices, LocationRole, StopPick};
 use crate::result::{
     PlaceProps, Properties, RESULT_SCHEMA_VERSION, TripResult, UnresolvedReason, UserChoice,
@@ -62,6 +63,17 @@ impl Engine {
         let prev = TripResult::parse(previous)
             .map_err(|e| incompatible(format!("not a Waylingo result: {e}")))?;
         check_versions(&prev)?;
+        // A code this version does not know was rewritten as UNKNOWN while parsing,
+        // which would also break the signature: say what is really wrong.
+        let unknown_code = prev.error.as_ref().is_some_and(|e| e.code == ErrorCode::Unknown)
+            || prev.features.iter().any(|f| {
+                matches!(&f.properties, Properties::UnresolvedStop(p) if p.error_code == Some(ErrorCode::Unknown))
+            });
+        if unknown_code {
+            return Err(incompatible(
+                "the result was made by a newer Waylingo version; continue it there or plan again",
+            ));
+        }
         if let Some(key) = &self.config.signing_key
             && !signing::verify(&prev, key)
         {
@@ -379,6 +391,7 @@ impl Session {
                         Outcome::Carried {
                             result: p.result,
                             detail: p.detail.clone(),
+                            error_code: p.error_code,
                         }
                     },
                 ),
