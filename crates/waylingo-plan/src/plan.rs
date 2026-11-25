@@ -167,7 +167,8 @@ pub enum Anchor {
         direction: Direction,
         amount: Amount,
     },
-    /// Marks at N, 2N, 3N… from the start, each searched ±`window_pct`% of N.
+    /// Marks at N, 2N, 3N… from the start. Each is searched like any anchor; a mark
+    /// closer than `window_pct`% of N to the end of the route is dropped.
     Every {
         interval: Amount,
         window_pct: u8,

@@ -10,16 +10,16 @@ Generated data, adapters, models, logs and the Python environment are gitignored
 ## 1. Generate the dataset
 
 ```bash
-cargo run -q -p waylingo-parse --example make_dataset            # 20 000 examples
+cargo run -q -p waylingo-parse --example make_dataset            # 40 000 examples
 ```
 
 Writes `finetune/data/`:
 
 | File | Rows | Purpose |
 | :--- | :--- | :--- |
-| `train.jsonl` | 18 000 | training |
-| `valid.jsonl` | 1 000 | validation loss during training |
-| `test.jsonl` | 1 000 | held-out sentences, same place pool as training |
+| `train.jsonl` | 36 000 | training |
+| `valid.jsonl` | 2 000 | validation loss during training |
+| `test.jsonl` | 2 000 | held-out sentences, same place pool as training |
 | `test_unseen.jsonl` | 1 000 | only places and brands that never appear in training: detects memorisation |
 
 Each row is `{"messages": [system, user, assistant], "meta": {...}, "saved": [...]}`:
@@ -54,8 +54,10 @@ finetune/.venv/bin/mlx_lm.lora --model Qwen/Qwen3-0.6B --train --data finetune/d
 ```
 
 Watch `Val loss` against `Train loss`: if validation loss rises while training loss
-keeps falling, the model is memorising. Use the checkpoint with the lowest
-validation loss (`finetune/adapters/qwen3-0.6b/0000500_adapters.safetensors`, ...).
+keeps falling, the model is memorising. Do not pick the checkpoint by validation
+loss, though: it is measured on generated sentences. Score each checkpoint on real
+human wording and on unseen places (section 4) and keep the one with the best mean
+of the two.
 
 ## 4. Evaluate
 

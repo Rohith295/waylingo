@@ -6,7 +6,9 @@ use serde::{Deserialize, Serialize};
 pub enum LlmMode {
     /// `response_format: {type: "json_schema"}`. OpenAI and most hosted endpoints.
     JsonSchema,
-    /// A single forced function call whose parameters are the schema.
+    /// A single function whose parameters are the schema, offered with
+    /// `tool_choice: "auto"` (some endpoints reject a forced call); a reply in plain
+    /// content is accepted too.
     ToolCall,
     /// Schema in the prompt; JSON is extracted from the reply text. Last resort for
     /// local servers without structured output.
