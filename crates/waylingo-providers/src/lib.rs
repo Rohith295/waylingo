@@ -10,10 +10,12 @@
 mod category;
 mod encode;
 mod error;
+mod here;
 mod tomtom;
 mod types;
 
 pub use error::{ErrorKind, ProviderError};
+pub use here::Here;
 pub use tomtom::TomTom;
 pub use types::{
     Candidate, Capabilities, DetourStrategy, GeocodeCandidate, ProviderAdapter, ProviderKind,

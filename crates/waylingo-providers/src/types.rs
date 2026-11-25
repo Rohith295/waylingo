@@ -10,6 +10,7 @@ use crate::ProviderError;
 pub enum ProviderKind {
     Here,
     Google,
+    #[serde(rename = "tomtom")]
     TomTom,
 }
 
@@ -44,6 +45,9 @@ pub struct Capabilities {
 /// One geocoding match.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GeocodeCandidate {
+    /// Stable id: the provider's place id, or one derived from the position when the
+    /// provider gives none. Never a list index.
+    pub id: String,
     pub label: String,
     pub position: LatLng,
     /// Provider relevance score, higher is better, if given.
@@ -78,6 +82,9 @@ pub struct SearchQuery {
     pub what: What,
     pub max_detour_s: u32,
     pub limit: u8,
+    /// How far from the route line places may be, metres (providers that search a
+    /// corridor, such as HERE, use it; TomTom uses `max_detour_s` instead).
+    pub corridor_m: u32,
 }
 
 /// A place found along the route. This is provider content: it goes into the
@@ -126,4 +133,32 @@ pub trait ProviderAdapter {
     /// # Errors
     /// The provider reported an error or the response was unusable.
     fn parse_search(&self, resp: &HttpResponse) -> Result<Vec<Candidate>, ProviderError>;
+
+    /// A travel-time matrix request, for adapters whose detour strategy is
+    /// [`DetourStrategy::Matrix`]. `None` when unsupported.
+    fn matrix_request(
+        &self,
+        _id: String,
+        _origins: &[LatLng],
+        _destinations: &[LatLng],
+    ) -> Option<HttpRequest> {
+        None
+    }
+    /// Travel times in seconds, row-major (`origins x destinations`); `None` where a
+    /// pair could not be routed.
+    ///
+    /// # Errors
+    /// The provider reported an error or the response was unusable.
+    fn parse_matrix(
+        &self,
+        _resp: &HttpResponse,
+        _origins: usize,
+        _destinations: usize,
+    ) -> Result<Vec<Option<f64>>, ProviderError> {
+        Err(ProviderError {
+            kind: crate::ErrorKind::BadRequest,
+            message: "matrix routing is not supported by this provider".into(),
+            retryable: false,
+        })
+    }
 }
