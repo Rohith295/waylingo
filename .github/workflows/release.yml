@@ -37,7 +37,7 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: The version matches Cargo.toml
         env:
           WANT: ${{ inputs.version }}
@@ -55,11 +55,11 @@ jobs:
           - { os: ubuntu-latest, target: aarch64, manylinux: auto }
           - { os: ubuntu-latest, target: x86_64, manylinux: musllinux_1_2 }
           - { os: ubuntu-latest, target: aarch64, manylinux: musllinux_1_2 }
-          - { os: macos-14, target: universal2-apple-darwin, manylinux: "" }
+          - { os: macos-latest, target: universal2-apple-darwin, manylinux: "" }
           - { os: windows-latest, target: x64, manylinux: "" }
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: PyO3/maturin-action@v1
         with:
           working-directory: crates/waylingo-ffi
@@ -75,7 +75,7 @@ jobs:
     needs: check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: PyO3/maturin-action@v1
         with:
           working-directory: crates/waylingo-ffi
@@ -88,11 +88,11 @@ jobs:
 
   apple:
     needs: check
-    runs-on: macos-14
+    runs-on: macos-latest
     outputs:
       checksum: ${{ steps.zip.outputs.checksum }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-apple-ios,aarch64-apple-ios-sim,x86_64-apple-ios,aarch64-apple-darwin,x86_64-apple-darwin
@@ -143,11 +143,11 @@ jobs:
     needs: check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
@@ -187,7 +187,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
@@ -236,12 +236,12 @@ jobs:
     runs-on: ubuntu-latest
     environment: maven-central
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/download-artifact@v4
         with:
           name: android-sources
           path: android/src/main
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
