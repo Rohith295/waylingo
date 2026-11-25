@@ -5,9 +5,10 @@ use waylingo_http::{HttpRequest, HttpResponse};
 use waylingo_plan::{Plan, PlanError, SurfaceIntent, TripContext, compile};
 
 use crate::conversation::Conversation;
+use crate::ground::ground_in_query;
 use crate::openai::{Reply, build_request, extract, llm_schema};
-use crate::prompt::SCHEMA_PREAMBLE;
-use crate::{LlmConfig, LlmMode, ParseInput};
+use crate::prompt::{COMPACT_SYSTEM_PROMPT, SCHEMA_PREAMBLE};
+use crate::{LlmConfig, LlmMode, ParseInput, PromptStyle};
 
 /// Longest backoff the parser asks for, in milliseconds.
 const MAX_BACKOFF_MS: u32 = 30_000;
@@ -24,6 +25,9 @@ pub enum FailureCode {
     LlmUnavailable,
     /// The model refused the request.
     LlmRefused,
+    /// The model reported that the text is not a trip request it can understand.
+    /// No repair is attempted: the caller should ask the user to rephrase.
+    NotUnderstood,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -48,6 +52,8 @@ pub enum ParseStep {
 pub struct Parser {
     cfg: LlmConfig,
     conv: Conversation,
+    /// The user's request, used to snap garbled place names back to their words.
+    query: String,
     repairs: u8,
     retries: u8,
     calls: u32,
@@ -58,12 +64,18 @@ impl Parser {
     /// Start parsing. Returns the first LLM request.
     #[must_use]
     pub fn start(input: &ParseInput, cfg: LlmConfig) -> (Self, HttpRequest) {
-        let suffix =
-            (cfg.mode == LlmMode::PromptJson).then(|| format!("{SCHEMA_PREAMBLE}{}", llm_schema()));
-        let conv = Conversation::new(input, suffix.as_deref());
+        let conv = match cfg.prompt {
+            PromptStyle::Compact => Conversation::with_system(input, COMPACT_SYSTEM_PROMPT, None),
+            PromptStyle::Full => {
+                let suffix = (cfg.mode == LlmMode::PromptJson)
+                    .then(|| format!("{SCHEMA_PREAMBLE}{}", llm_schema()));
+                Conversation::new(input, suffix.as_deref())
+            }
+        };
         let mut p = Self {
             cfg,
             conv,
+            query: input.query().to_string(),
             repairs: 0,
             retries: 0,
             calls: 0,
@@ -105,10 +117,20 @@ impl Parser {
         };
 
         let errors = match serde_json::from_str::<SurfaceIntent>(&text) {
-            Ok(intent) => match compile(&intent, ctx) {
-                Ok(plan) => return ParseStep::Done(Box::new(plan)),
-                Err(errs) => errs,
-            },
+            Ok(intent) if intent.error.is_some() => {
+                return fail(
+                    FailureCode::NotUnderstood,
+                    "the request could not be understood as a trip with stops; ask the user to rephrase",
+                    vec![],
+                );
+            }
+            Ok(mut intent) => {
+                ground_in_query(&mut intent, &self.query);
+                match compile(&intent, ctx) {
+                    Ok(plan) => return ParseStep::Done(Box::new(plan)),
+                    Err(errs) => errs,
+                }
+            }
             Err(e) => vec![PlanError {
                 pointer: String::new(),
                 reason: format!("not a valid object for the schema: {e}"),
@@ -133,7 +155,11 @@ impl Parser {
         if matches!(resp.status, 401 | 403) {
             return fail(
                 FailureCode::LlmAuth,
-                &format!("LLM endpoint returned {}", resp.status),
+                &format!(
+                    "LLM endpoint returned {}{}",
+                    resp.status,
+                    error_detail(resp)
+                ),
                 vec![],
             );
         }
@@ -147,9 +173,10 @@ impl Parser {
             self.pending = Some(again.clone());
             return ParseStep::Request(again);
         }
-        let what = resp
-            .transport_error
-            .map_or_else(|| format!("HTTP {}", resp.status), |e| format!("{e:?}"));
+        let what = resp.transport_error.map_or_else(
+            || format!("HTTP {}{}", resp.status, error_detail(resp)),
+            |e| format!("{e:?}"),
+        );
         fail(
             FailureCode::LlmUnavailable,
             &format!("LLM endpoint failed: {what}"),
@@ -176,6 +203,33 @@ fn fail(code: FailureCode, message: &str, errors: Vec<PlanError>) -> ParseStep {
 fn retry_after_ms(resp: &HttpResponse) -> Option<u32> {
     let secs: f64 = resp.header("Retry-After")?.trim().parse().ok()?;
     (secs.is_finite() && secs >= 0.0).then(|| (secs * 1000.0).min(f64::from(MAX_BACKOFF_MS)) as u32)
+}
+
+/// The endpoint's own error text (OpenAI-style `{"error":{"message":...}}`), cut to
+/// 300 characters. Error bodies describe the request, not secrets, but anything that
+/// looks like a key is masked anyway.
+fn error_detail(resp: &HttpResponse) -> String {
+    let v: serde_json::Value = serde_json::from_slice(&resp.body).unwrap_or_default();
+    let msg = v["error"]["message"]
+        .as_str()
+        .or_else(|| v["message"].as_str())
+        .or_else(|| v["error"].as_str());
+    let Some(msg) = msg else { return String::new() };
+    let masked: Vec<String> = msg
+        .split_whitespace()
+        .map(|w| {
+            if w.starts_with("sk-") || w.len() > 40 {
+                "<redacted>".into()
+            } else {
+                w.to_string()
+            }
+        })
+        .collect();
+    let mut s = masked.join(" ");
+    if s.chars().count() > 300 {
+        s = s.chars().take(300).collect::<String>() + "...";
+    }
+    format!(" ({s})")
 }
 
 #[cfg(test)]
@@ -380,6 +434,17 @@ mod tests {
             p.on_response(&content_reply(&r.id, GOOD), &ctx()),
             ParseStep::Failed(_)
         ));
+    }
+
+    #[test]
+    fn not_understood_fails_fast_without_repair() {
+        let (mut p, r) = start(LlmMode::JsonSchema);
+        let reply = content_reply(&r.id, r#"{"error":"not_understood","stops":[]}"#);
+        match p.on_response(&reply, &ctx()) {
+            ParseStep::Failed(f) => assert_eq!(f.code, FailureCode::NotUnderstood),
+            other => panic!("{other:?}"),
+        }
+        assert_eq!(p.calls(), 1, "no repair round");
     }
 
     #[test]

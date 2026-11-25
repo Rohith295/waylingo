@@ -46,7 +46,10 @@ impl ParseInput {
         &self.query
     }
 
-    pub(crate) fn user_message(&self) -> String {
+    /// The user message sent to the LLM (locale, saved-place names, request text).
+    /// Public so training data uses exactly the same format.
+    #[must_use]
+    pub fn user_message(&self) -> String {
         let mut m = String::new();
         if let Some(l) = &self.locale {
             m.push_str("Locale: ");
