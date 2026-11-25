@@ -236,7 +236,7 @@ The use case only defines `"status": "success"`. If the result is all-or-nothing
 
 - **Top-level status:** `complete`, `partial` or `failed`. It is `failed` only when the plan is invalid or the base route fails.
 - **Per-stop result:** `Found`, `NoCandidates` (with the window searched), `ProviderError` (with whether it can be retried), `SkippedBudget` or `Unsupported`. There is no "needs clarification" state, because the engine never asks follow-up questions. Ambiguity is resolved by a documented rule and reported in `assumptions`.
-- **Error codes:** a fixed list, for example `AUTH`, `QUOTA_EXCEEDED`, `RATE_LIMITED`, `NO_ROUTE`.
+- **Error codes:** a fixed list (`waylingo::ErrorCode`), for example `PROVIDER_AUTH`, `PROVIDER_QUOTA_EXCEEDED`, `PROVIDER_RATE_LIMITED`, `NO_ROUTE`; the full table is in `crates/waylingo-ffi/README.md`.
 - **Defaults:** 8-second timeout per call, at most 2 retries, and retries only on 429, 5xx or a dropped connection.
 
 ### 10. A capability-based provider interface, not one big trait

@@ -4,11 +4,13 @@
 use waylingo::{Properties, Status, TripResult, UserChoice as CoreUserChoice};
 
 use crate::choices::LocationRole;
+use crate::error_code::ErrorCode;
 use crate::trip::LatLng;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]
 pub enum TripStatus {
-    /// Every stop was found.
+    /// The route was made and every requested stop was found (a trip may have
+    /// no stops).
     Complete,
     /// The route was made, but some stops were not found (see `unresolved`).
     Partial,
@@ -57,14 +59,47 @@ pub struct Stop {
     pub user_choice: Option<UserChoice>,
 }
 
+/// Why a stop has no place.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]
+pub enum UnresolvedReason {
+    /// Nothing matched within the detour limit (or every match serves another stop).
+    NoCandidates,
+    /// The end user left this stop out.
+    SkippedByUser,
+    /// The map call budget ran out before this stop was searched.
+    SkippedBudget,
+    /// The anchor cannot be placed on this route (for example, the route is shorter
+    /// than the interval).
+    Unsupported,
+    /// The map provider failed for this search; see `error_code`.
+    ProviderError,
+    /// The search did not run.
+    NotSearched,
+}
+
+impl From<waylingo::UnresolvedReason> for UnresolvedReason {
+    fn from(r: waylingo::UnresolvedReason) -> Self {
+        use waylingo::UnresolvedReason as R;
+        match r {
+            R::NoCandidates => Self::NoCandidates,
+            R::SkippedByUser => Self::SkippedByUser,
+            R::SkippedBudget => Self::SkippedBudget,
+            R::Unsupported => Self::Unsupported,
+            R::ProviderError => Self::ProviderError,
+            R::NotSearched => Self::NotSearched,
+        }
+    }
+}
+
 /// A stop without a place.
 #[derive(Debug, Clone, PartialEq, uniffi::Record)]
 pub struct UnresolvedStop {
     pub stop_request_id: String,
     pub occurrence: u32,
-    /// `NO_CANDIDATES`, `SKIPPED_BY_USER`, `SKIPPED_BUDGET`, `UNSUPPORTED`,
-    /// `PROVIDER_ERROR` or `NOT_SEARCHED`.
-    pub reason: String,
+    pub reason: UnresolvedReason,
+    /// For `ProviderError`: what went wrong (for example `ProviderRateLimited`, to
+    /// retry later). See `is_retryable`.
+    pub error_code: Option<ErrorCode>,
     pub detail: Option<String>,
     /// For a skipped stop: the places it offered, to bring it back.
     pub options: Vec<Place>,
@@ -101,9 +136,9 @@ pub struct TripOutput {
     /// user chooses.
     pub geojson: String,
     pub status: TripStatus,
-    /// For example `NOT_UNDERSTOOD` (ask the end user to rephrase), `NO_GEOCODE`,
-    /// `PROVIDER_AUTH`, `LLM_UNAVAILABLE`.
-    pub error_code: Option<String>,
+    /// Why there is no usable trip, when `status` is `FAILED`. See `is_retryable`
+    /// and `needs_user` for how to react.
+    pub error_code: Option<ErrorCode>,
     pub error_message: Option<String>,
     pub stops: Vec<Stop>,
     pub unresolved: Vec<UnresolvedStop>,
@@ -139,13 +174,6 @@ fn place(p: &waylingo::PlaceProps) -> Place {
     }
 }
 
-fn reason_code(r: waylingo::UnresolvedReason) -> String {
-    serde_json::to_value(r)
-        .ok()
-        .and_then(|v| v.as_str().map(String::from))
-        .unwrap_or_default()
-}
-
 impl TripOutput {
     pub(crate) fn from_geojson(geojson: String) -> Self {
         let doc = match TripResult::parse(&geojson) {
@@ -156,7 +184,7 @@ impl TripOutput {
                 return Self {
                     geojson,
                     status: TripStatus::Failed,
-                    error_code: Some("INTERNAL".into()),
+                    error_code: Some(ErrorCode::Internal),
                     error_message: Some(e),
                     stops: vec![],
                     unresolved: vec![],
@@ -177,7 +205,7 @@ impl TripOutput {
                 Status::Partial => TripStatus::Partial,
                 Status::Failed => TripStatus::Failed,
             },
-            error_code: doc.error.as_ref().map(|e| e.code.clone()),
+            error_code: doc.error.as_ref().map(|e| e.code.into()),
             error_message: doc.error.as_ref().map(|e| e.message.clone()),
             stops: vec![],
             unresolved: vec![],
@@ -240,7 +268,8 @@ impl TripOutput {
                 Properties::UnresolvedStop(p) => out.unresolved.push(UnresolvedStop {
                     stop_request_id: p.stop_request_id.clone(),
                     occurrence: p.occurrence,
-                    reason: reason_code(p.result),
+                    reason: p.result.into(),
+                    error_code: p.error_code.map(Into::into),
                     detail: p.detail.clone(),
                     options: p.options.iter().map(place).collect(),
                 }),
@@ -259,14 +288,40 @@ mod tests {
     fn a_document_that_is_not_a_result_is_reported_as_failed() {
         let out = TripOutput::from_geojson("{}".into());
         assert_eq!(out.status, TripStatus::Failed);
-        assert_eq!(out.error_code.as_deref(), Some("INTERNAL"));
+        assert_eq!(out.error_code, Some(ErrorCode::Internal));
     }
 
     #[test]
-    fn reason_codes_match_the_geojson() {
+    fn a_failed_document_keeps_its_code() {
+        let doc = serde_json::json!({
+            "type": "FeatureCollection",
+            "result_schema": waylingo::RESULT_SCHEMA_VERSION,
+            "plan_schema": "0.1.0",
+            "request_id": null,
+            "status": "failed",
+            "error": {"code": "NEEDS_DESTINATION", "message": "where to?"},
+            "provider": "tomtom",
+            "attribution": "",
+            "plan": null,
+            "plan_hash": null,
+            "assumptions": [],
+            "warnings": [],
+            "usage": {"llm_calls": 2, "map_calls": 0},
+            "search": {
+                "anchor_radius_m": 5000, "search_span_m": 15000, "search_limit": 20,
+                "search_limit_requested": 20, "strict_radius": false, "max_detour_s": 600,
+                "every_window_pct": 20, "top_n": 3
+            },
+            "features": [],
+            "signature": null,
+        });
+        let out = TripOutput::from_geojson(doc.to_string());
         assert_eq!(
-            reason_code(waylingo::UnresolvedReason::SkippedByUser),
-            "SKIPPED_BY_USER"
+            out.error_code,
+            Some(ErrorCode::NeedsDestination),
+            "{:?}",
+            out.error_message
         );
+        assert_eq!(out.status, TripStatus::Failed);
     }
 }

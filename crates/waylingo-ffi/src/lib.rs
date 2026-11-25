@@ -13,6 +13,7 @@
 mod choices;
 mod config;
 mod error;
+mod error_code;
 mod result;
 mod trip;
 
@@ -24,8 +25,10 @@ use waylingo_reqwest::{AsyncHost, Keys};
 pub use choices::{Choices, LocationChoice, LocationRole, StopChoice, StopPick};
 pub use config::{LlmBackend, MapProvider, SearchSettings, WaylingoConfig};
 pub use error::WaylingoError;
+pub use error_code::{ErrorCode, is_retryable, needs_user};
 pub use result::{
-    Candidate, Location, Place, Stop, TripOutput, TripStatus, UnresolvedStop, UserChoice,
+    Candidate, Location, Place, Stop, TripOutput, TripStatus, UnresolvedReason, UnresolvedStop,
+    UserChoice,
 };
 pub use trip::{AvoidKind, ConnectorKind, EvSpec, LatLng, SavedPlace, TripInput};
 

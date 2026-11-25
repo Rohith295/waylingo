@@ -19,8 +19,7 @@ use waylingo_http::{HttpRequest, HttpResponse};
 use waylingo_parse::{ParseInput, ParseStep, Parser};
 use waylingo_plan::{Location, Plan, TripContext};
 use waylingo_providers::{
-    Candidate, ErrorKind, GeocodeCandidate, Here, ProviderAdapter, ProviderError, RouteResult,
-    TomTom,
+    Candidate, GeocodeCandidate, Here, ProviderAdapter, ProviderError, RouteResult, TomTom,
 };
 
 use crate::choices::StopPick;
@@ -28,7 +27,7 @@ use crate::output::{self, Failure, LocationOut, Role};
 use crate::result::SearchEcho;
 use crate::result::UnresolvedReason;
 use crate::select::{Choice, Placed};
-use crate::{EngineConfig, ProviderChoice};
+use crate::{EngineConfig, ErrorCode, ProviderChoice};
 
 /// One request to the engine.
 #[derive(Debug, Clone, PartialEq)]
@@ -200,6 +199,7 @@ pub(crate) enum Outcome {
     Carried {
         result: UnresolvedReason,
         detail: Option<String>,
+        error_code: Option<ErrorCode>,
     },
 }
 
@@ -316,27 +316,17 @@ impl Session {
         req
     }
 
-    fn fail(&mut self, code: &str, message: impl Into<String>) {
+    fn fail(&mut self, code: ErrorCode, message: impl Into<String>) {
         if self.failure.is_none() {
             self.failure = Some(Failure {
-                code: code.to_string(),
+                code,
                 message: message.into(),
             });
         }
     }
 
     fn fail_provider(&mut self, e: &ProviderError, what: &str) {
-        let code = match e.kind {
-            ErrorKind::Auth => "PROVIDER_AUTH",
-            ErrorKind::QuotaExceeded => "QUOTA_EXCEEDED",
-            ErrorKind::RateLimited => "RATE_LIMITED",
-            ErrorKind::NoRoute => "NO_ROUTE",
-            ErrorKind::Transport => "PROVIDER_UNREACHABLE",
-            ErrorKind::BadRequest | ErrorKind::Upstream | ErrorKind::BadResponse => {
-                "PROVIDER_ERROR"
-            }
-        };
-        self.fail(code, format!("{what}: {}", e.message));
+        self.fail(e.kind.into(), format!("{what}: {}", e.message));
     }
 
     /// Process one response. Returns a follow-up request (LLM repair or retry), if any.
@@ -402,13 +392,13 @@ impl Session {
                 None
             }
             ParseStep::Failed(f) => {
-                let code = json_code(&f.code);
+                let code = ErrorCode::from(f.code);
                 let mut msg = f.message;
                 if !f.errors.is_empty() {
                     let list: Vec<String> = f.errors.iter().map(ToString::to_string).collect();
                     msg = format!("{msg}: {}", list.join("; "));
                 }
-                self.fail(&code, msg);
+                self.fail(code, msg);
                 self.parser = None;
                 None
             }
@@ -528,11 +518,4 @@ impl Session {
 fn retry_after_ms(resp: &HttpResponse) -> Option<u32> {
     let secs: f64 = resp.header("Retry-After")?.trim().parse().ok()?;
     (secs.is_finite() && secs >= 0.0).then(|| (secs * 1000.0).min(30_000.0) as u32)
-}
-
-fn json_code<T: serde::Serialize>(v: &T) -> String {
-    serde_json::to_value(v)
-        .ok()
-        .and_then(|v| v.as_str().map(String::from))
-        .unwrap_or_else(|| "UNKNOWN".into())
 }
