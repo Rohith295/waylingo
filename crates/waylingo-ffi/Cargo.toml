@@ -1,0 +1,43 @@
+[package]
+name = "waylingo-ffi"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Python, Swift and Kotlin bindings for Waylingo (UniFFI)."
+publish = false
+
+[lib]
+crate-type = ["cdylib", "staticlib", "lib"]
+name = "waylingo_ffi"
+
+[[bin]]
+# Generates the Python, Swift and Kotlin sources:
+#   cargo run -p waylingo-ffi --features bindgen --bin uniffi-bindgen -- generate ...
+name = "uniffi-bindgen"
+path = "src/bin/uniffi-bindgen.rs"
+required-features = ["bindgen"]
+
+[features]
+# The binding generator. Swift and Kotlin libraries are built without it; Python
+# wheels currently include it because maturin builds the generator from this crate
+# (to split out before publishing to PyPI).
+bindgen = ["uniffi/cli"]
+
+# Not the workspace lints: the generated FFI scaffolding needs `unsafe`. Our own code
+# here has none (checked in review); the engine crates keep `unsafe_code = "forbid"`.
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+
+[dependencies]
+serde_json = "1.0.154"
+thiserror = "2.0.21"
+tokio = { version = "1", features = ["rt-multi-thread"] }
+uniffi = { version = "0.32", features = ["tokio"] }
+waylingo = { path = "../waylingo" }
+waylingo-reqwest = { path = "../waylingo-reqwest" }
+
+# Android's platform certificate verifier needs app-context set-up; use bundled
+# Mozilla roots there instead.
+[target.'cfg(target_os = "android")'.dependencies]
+waylingo-reqwest = { path = "../waylingo-reqwest", features = ["bundled-roots"] }
