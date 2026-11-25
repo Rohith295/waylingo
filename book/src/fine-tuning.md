@@ -97,6 +97,5 @@ is needed.
 ## On the device
 
 The model is small enough for a phone, but Waylingo cannot run it on the device yet.
-The plan is a callback from the engine to an on-device runtime (such as llama.cpp in
-the app). Until then the model needs a server, which can be on the same machine as the
-app.
+[Running the parser on a phone](on-device.md) covers the runtime to use (llama.cpp),
+size, speed, delivery, and how it will connect to Waylingo.

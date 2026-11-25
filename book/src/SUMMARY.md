@@ -22,6 +22,7 @@
 # The project
 
 - [The fine-tuned parser](fine-tuning.md)
+- [Running the parser on a phone](on-device.md)
 - [Testing and releases](testing-and-releases.md)
 - [Design decisions and limitations](design-decisions.md)
 - [Glossary](glossary.md)
