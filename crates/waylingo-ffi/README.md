@@ -12,9 +12,9 @@ You bring two keys: your map provider's (TomTom or HERE) and your LLM provider's
 (Anthropic, OpenAI, Gemini, or any OpenAI-compatible server). The LLM only reads
 the request text; map data never reaches it.
 
-Status: Python and Swift (macOS) are built and tested live. Kotlin is generated but
-not yet compiled or tested; iOS and Android device builds are documented below but
-not yet verified.
+Status: Python and Swift (macOS) are built and tested live. Kotlin is compiled and
+tested on the JVM in CI. iOS and Android device builds are documented below but not
+yet verified on a device.
 
 ## The loop in an app
 
@@ -112,7 +112,7 @@ let out = try await app.plan(trip: TripInput(
 
 ## Kotlin (Android, JVM)
 
-Not yet compiled or tested. The source is generated into
+Compiled and tested on the JVM in CI; not yet run on an Android device. The source is generated into
 `bindings/kotlin/io/waylingo/waylingo.kt`. Build the native library per ABI (needs
 `rustup` and the Android NDK); on Android the library trusts bundled Mozilla root
 certificates, so no TLS set-up is needed. Those do not include user-installed or

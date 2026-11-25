@@ -25,3 +25,4 @@ waylingo-output*.geojson
 /android/.gradle/
 /WaylingoFFI.xcframework*
 /.build/
+/book/book/

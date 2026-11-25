@@ -1,0 +1,11 @@
+[book]
+title = "Waylingo"
+authors = ["Waylingo authors"]
+description = "How Waylingo turns one natural-language trip request into one GeoJSON trip, and why it is built the way it is."
+language = "en"
+src = "src"
+
+[output.html]
+git-repository-url = "https://github.com/Rohith295/waylingo"
+site-url = "/waylingo/"
+edit-url-template = "https://github.com/Rohith295/waylingo/edit/main/book/{path}"
