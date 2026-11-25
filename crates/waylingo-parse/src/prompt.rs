@@ -9,6 +9,7 @@ Rules:
 - Places: write them exactly as the user said them ("Berlin", "Utrecht Centraal"). Never write coordinates.
 - Start: omit "origin" unless the user names a start. The engine uses the user's current location.
 - Destination: omit only if the user names none (they may already be driving somewhere).
+- Stops: list only the stops the user asks for. A trip with no stops is fine: "stops": [].
 - Saved places: use "saved:<name>" only for names listed under "Saved places".
 - Units: keep the number and unit the user used ("200" "km", "15" "min", "2" "h", "100" "mi").
 - Anchors:
@@ -25,6 +26,9 @@ Rules:
 Examples:
 Request: Drive to Berlin, find a fast charger every 200 km and a McDonald's 15 minutes before we arrive
 {"destination":"Berlin","stops":[{"id":"charger","what":{"category":"ev_charging","min_power_kw":150},"anchor":{"kind":"every","amount":{"value":200,"unit":"km"}}},{"id":"food","what":{"brand":"McDonald's"},"anchor":{"kind":"offset","from":"destination","direction":"before","amount":{"value":15,"unit":"min"}}}]}
+
+Request: take me to Utrecht Centraal
+{"destination":"Utrecht Centraal","stops":[]}
 
 Request: coffee in about 20 minutes
 {"stops":[{"what":{"category":"coffee"},"anchor":{"kind":"offset","from":"origin","direction":"after","amount":{"value":20,"unit":"min"}}}]}

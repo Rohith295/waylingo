@@ -531,3 +531,58 @@ fn a_signed_result_resumes_with_the_route_geometry_nulled() {
     v["features"][i]["geometry"] = Value::Null;
     assert!(e.resume(&v.to_string(), Choices::default(), None).is_ok());
 }
+
+#[test]
+fn destination_only_trip_takes_another_candidate() {
+    let dest_only = |_: usize| (200, r#"{"destination":"Berlin"}"#.to_string());
+    let before = host(&dest_only).run();
+    let other = kinds(&before, "destination")[0]["properties"]["candidates"][1]["id"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    let choices = Choices {
+        locations: vec![LocationChoice {
+            role: LocationRole::Destination,
+            index: None,
+            candidate_id: other.clone(),
+        }],
+        ..Choices::default()
+    };
+    let (session, step) = engine().resume(&before.to_string(), choices, None).unwrap();
+    let mut h = host(&good_llm);
+    let after = h.drive(session, step);
+
+    assert_eq!(after["status"], "complete", "{after:#}");
+    assert_eq!(after["usage"]["llm_calls"], 0);
+    assert_eq!(after["usage"]["map_calls"], 1, "one route, nothing else");
+    assert!(h.log.iter().all(|r| r.url.contains("calculateRoute")));
+    let dest = &kinds(&after, "destination")[0];
+    assert_eq!(dest["properties"]["chosen_id"], other.as_str());
+    assert!(kinds(&after, "stop").is_empty());
+}
+
+#[test]
+fn a_result_from_a_newer_version_is_refused_clearly() {
+    let (_, mut v) = first_result();
+    v["status"] = "failed".into();
+    v["error"] = serde_json::json!({ "code": "SOMETHING_NEW", "message": "x" });
+    match engine().resume(&v.to_string(), Choices::default(), None) {
+        Err(WaylingoError::IncompatibleResult(m)) => assert!(m.contains("newer"), "{m}"),
+        Err(other) => panic!("{other:?}"),
+        Ok(_) => panic!("accepted"),
+    }
+}
+
+#[test]
+fn destination_only_result_resumes_with_one_route_call() {
+    let dest_only = |_: usize| (200, r#"{"destination":"Berlin"}"#.to_string());
+    let before = host(&dest_only).run();
+    let (session, step) = engine()
+        .resume(&before.to_string(), Choices::default(), None)
+        .unwrap();
+    let mut h = host(&good_llm);
+    let after = h.drive(session, step);
+    assert_eq!(after["status"], "complete");
+    assert_eq!(after["usage"]["llm_calls"], 0);
+    assert_eq!(after["usage"]["map_calls"], 1);
+}

@@ -5,7 +5,9 @@ mod common;
 
 use common::*;
 use serde_json::{Value, json};
-use waylingo::{CredentialSlot, HttpRequest, HttpResponse, Step, TripRequest, WaylingoError};
+use waylingo::{
+    CredentialSlot, HttpRequest, HttpResponse, Step, TransportError, TripRequest, WaylingoError,
+};
 
 #[test]
 fn query_in_geojson_out() {
@@ -181,7 +183,7 @@ fn route_keeps_failing_gives_failed_status() {
     }
     .run();
     assert_eq!(v["status"], "failed");
-    assert_eq!(v["error"]["code"], "PROVIDER_ERROR");
+    assert_eq!(v["error"]["code"], "PROVIDER_UNAVAILABLE");
 }
 
 #[test]
@@ -317,4 +319,143 @@ fn strict_radius_never_returns_far_places() {
         assert_eq!(s["properties"]["beyond_radius"], false);
     }
     assert!(kinds(&strict, "unresolved_stop").len() >= kinds(&lenient, "unresolved_stop").len());
+}
+
+#[test]
+fn destination_only_trip() {
+    let llm = |_: usize| (200, r#"{"destination":"Berlin"}"#.to_string());
+    let mut host = host(&llm);
+    let v = host.run();
+    assert_eq!(v["status"], "complete", "{v:#}");
+    assert_eq!(v["error"], Value::Null);
+    assert!(kinds(&v, "stop").is_empty());
+    assert!(kinds(&v, "unresolved_stop").is_empty());
+    let route = kinds(&v, "route");
+    assert_eq!(route.len(), 1);
+    assert_eq!(route[0]["geometry"]["type"], "LineString");
+    // Geocode and route only: no category list, no searches, no final route.
+    assert_eq!(v["usage"]["llm_calls"], 1);
+    assert_eq!(v["usage"]["map_calls"], 2);
+    assert!(!host.log.iter().any(|r| r.url.contains("poiCategories")));
+}
+
+#[test]
+fn missing_destination_asks_the_user() {
+    // The LLM keeps leaving the destination out: one neutral question, then the
+    // app is told to ask the end user. No map calls.
+    let llm = |_: usize| {
+        (
+            200,
+            r#"{"stops":[{"what":{"category":"coffee"},"anchor":{"kind":"fraction","value":0.5}}]}"#
+                .to_string(),
+        )
+    };
+    let mut host = host(&llm);
+    let v = host.run();
+    assert_eq!(v["status"], "failed");
+    assert_eq!(v["error"]["code"], "NEEDS_DESTINATION");
+    assert_eq!(v["usage"]["llm_calls"], 2);
+    assert_eq!(v["usage"]["map_calls"], 0);
+}
+
+#[test]
+fn missing_current_location_is_reported_without_repair() {
+    let mut req = request();
+    req.context.current_location = None;
+    let (mut session, mut step) = engine().start(req).unwrap();
+    let mut h = host(&good_llm);
+    let v = loop {
+        match step {
+            Step::Done { geojson } => break serde_json::from_str::<Value>(&geojson).unwrap(),
+            Step::NeedRequests { requests } => {
+                let resps = requests.iter().map(|r| h.answer(r)).collect();
+                step = session.step(resps).unwrap();
+            }
+        }
+    };
+    assert_eq!(v["error"]["code"], "NEEDS_CURRENT_LOCATION");
+    assert_eq!(v["usage"]["llm_calls"], 1);
+}
+
+/// Run the reference trip with every map call answered the same way.
+fn with_map_answer(status: u16, body: &[u8], transport: Option<TransportError>) -> Value {
+    let (mut session, mut step) = engine().start(request()).unwrap();
+    let mut h = host(&good_llm);
+    loop {
+        match step {
+            Step::Done { geojson } => return serde_json::from_str(&geojson).unwrap(),
+            Step::NeedRequests { requests } => {
+                let resps = requests
+                    .iter()
+                    .map(|r| {
+                        if r.credential == CredentialSlot::Llm {
+                            h.answer(r)
+                        } else {
+                            HttpResponse {
+                                id: r.id.clone(),
+                                status,
+                                headers: vec![],
+                                body: body.to_vec(),
+                                transport_error: transport,
+                            }
+                        }
+                    })
+                    .collect();
+                step = session.step(resps).unwrap();
+            }
+        }
+    }
+}
+
+#[test]
+fn provider_failures_have_their_own_codes() {
+    let cases: [(u16, &[u8], Option<TransportError>, &str); 6] = [
+        (401, b"{}", None, "PROVIDER_AUTH"),
+        (402, b"{}", None, "PROVIDER_QUOTA_EXCEEDED"),
+        (429, b"{}", None, "PROVIDER_RATE_LIMITED"),
+        (400, b"{}", None, "PROVIDER_BAD_REQUEST"),
+        (200, b"{\"unexpected\": true", None, "PROVIDER_BAD_RESPONSE"),
+        (
+            0,
+            b"",
+            Some(TransportError::ConnectionFailed),
+            "PROVIDER_UNREACHABLE",
+        ),
+    ];
+    for (status, body, transport, want) in cases {
+        let v = with_map_answer(status, body, transport);
+        assert_eq!(v["status"], "failed", "{want}");
+        assert_eq!(v["error"]["code"], want);
+    }
+}
+
+#[test]
+fn a_failed_stop_search_carries_a_typed_code() {
+    let (mut session, mut step) = engine().start(request()).unwrap();
+    let mut h = host(&good_llm);
+    let v = loop {
+        match step {
+            Step::Done { geojson } => break serde_json::from_str::<Value>(&geojson).unwrap(),
+            Step::NeedRequests { requests } => {
+                let resps = requests
+                    .iter()
+                    .map(|r| {
+                        if r.url.contains("searchAlongRoute") {
+                            reply(r, 403, b"{}".to_vec())
+                        } else {
+                            h.answer(r)
+                        }
+                    })
+                    .collect();
+                step = session.step(resps).unwrap();
+            }
+        }
+    };
+    assert_eq!(v["status"], "partial");
+    let unresolved = kinds(&v, "unresolved_stop");
+    assert!(!unresolved.is_empty());
+    for u in unresolved {
+        assert_eq!(u["properties"]["result"], "PROVIDER_ERROR");
+        assert_eq!(u["properties"]["error_code"], "PROVIDER_AUTH");
+    }
 }

@@ -13,7 +13,7 @@ mod schema;
 mod surface;
 mod validate;
 
-pub use compile::{PlanError, compile};
+pub use compile::{Need, PlanError, compile};
 pub use context::{
     Coords, Defaults, MAX_ANCHOR_RADIUS_M, MAX_DETOUR_S, MAX_SEARCH_SPAN_M, MIN_ANCHOR_RADIUS_M,
     SavedPlace, TripContext,

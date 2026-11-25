@@ -2,6 +2,12 @@ use waylingo_plan::TripContext;
 
 /// Longest query accepted, in characters.
 pub const MAX_QUERY_CHARS: usize = 2_000;
+/// Most saved places passed with one request; their names go into the prompt.
+pub const MAX_SAVED_PLACES: usize = 50;
+/// Longest saved-place name, in characters.
+pub const MAX_SAVED_NAME_CHARS: usize = 60;
+/// Longest locale tag, in characters (BCP 47 tags are far shorter).
+pub const MAX_LOCALE_CHARS: usize = 35;
 
 /// Everything the LLM is allowed to see about a request. There is deliberately no
 /// field for coordinates, routes or provider results, and no way to add one.
@@ -18,6 +24,15 @@ pub enum InputError {
     EmptyQuery,
     #[error("the query is longer than {MAX_QUERY_CHARS} characters")]
     QueryTooLong,
+    #[error("more than {MAX_SAVED_PLACES} saved places")]
+    TooManySavedPlaces,
+    #[error("a saved place name is empty or longer than {MAX_SAVED_NAME_CHARS} characters")]
+    BadSavedPlaceName,
+    #[error("the locale is longer than {MAX_LOCALE_CHARS} characters")]
+    LocaleTooLong,
+    /// Latitude outside -90..90, longitude outside -180..180, or not a number.
+    #[error("{0} has invalid coordinates")]
+    InvalidCoordinates(&'static str),
 }
 
 impl ParseInput {
@@ -25,7 +40,8 @@ impl ParseInput {
     /// the locale and the *names* of saved places.
     ///
     /// # Errors
-    /// [`InputError`] for an empty or oversized query.
+    /// [`InputError`] for an empty or oversized query, oversized context, or
+    /// coordinates out of range.
     pub fn new(query: &str, ctx: &TripContext) -> Result<Self, InputError> {
         let query = query.trim();
         if query.is_empty() {
@@ -33,6 +49,31 @@ impl ParseInput {
         }
         if query.chars().count() > MAX_QUERY_CHARS {
             return Err(InputError::QueryTooLong);
+        }
+        if ctx.saved_places.len() > MAX_SAVED_PLACES {
+            return Err(InputError::TooManySavedPlaces);
+        }
+        for p in &ctx.saved_places {
+            let n = p.name.trim().chars().count();
+            if n == 0 || n > MAX_SAVED_NAME_CHARS {
+                return Err(InputError::BadSavedPlaceName);
+            }
+            if !p.location.is_valid() {
+                return Err(InputError::InvalidCoordinates("a saved place"));
+            }
+        }
+        if ctx
+            .locale
+            .as_ref()
+            .is_some_and(|l| l.chars().count() > MAX_LOCALE_CHARS)
+        {
+            return Err(InputError::LocaleTooLong);
+        }
+        if ctx.current_location.is_some_and(|c| !c.is_valid()) {
+            return Err(InputError::InvalidCoordinates("current_location"));
+        }
+        if ctx.active_destination.is_some_and(|c| !c.is_valid()) {
+            return Err(InputError::InvalidCoordinates("active_destination"));
         }
         Ok(Self {
             query: query.to_string(),
@@ -113,6 +154,43 @@ mod tests {
         assert_eq!(
             ParseInput::new(&"a".repeat(2_001), &ctx),
             Err(InputError::QueryTooLong)
+        );
+    }
+
+    #[test]
+    fn rejects_bad_context() {
+        let bad = Coords {
+            lat: 95.0,
+            lng: f64::NAN,
+        };
+        let with = |f: &dyn Fn(&mut TripContext)| {
+            let mut c = TripContext::default();
+            f(&mut c);
+            ParseInput::new("drive to Utrecht", &c).unwrap_err()
+        };
+        assert_eq!(
+            with(&|c| c.current_location = Some(bad)),
+            InputError::InvalidCoordinates("current_location")
+        );
+        assert_eq!(
+            with(&|c| c.active_destination = Some(bad)),
+            InputError::InvalidCoordinates("active_destination")
+        );
+        assert_eq!(
+            with(&|c| c.locale = Some("x".repeat(40))),
+            InputError::LocaleTooLong
+        );
+        let place = |name: &str| SavedPlace {
+            name: name.into(),
+            location: Coords { lat: 1.0, lng: 1.0 },
+        };
+        assert_eq!(
+            with(&|c| c.saved_places = vec![place(" ")]),
+            InputError::BadSavedPlaceName
+        );
+        assert_eq!(
+            with(&|c| c.saved_places = (0..51).map(|i| place(&format!("p{i}"))).collect()),
+            InputError::TooManySavedPlaces
         );
     }
 }

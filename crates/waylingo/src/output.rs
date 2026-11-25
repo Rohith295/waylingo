@@ -16,7 +16,7 @@ use crate::select::Placed;
 use crate::signing;
 
 pub(crate) struct Failure {
-    pub code: String,
+    pub code: crate::ErrorCode,
     pub message: String,
 }
 
@@ -199,6 +199,7 @@ pub(crate) fn build(i: &Inputs<'_>) -> String {
             continue;
         }
         unresolved += 1;
+        let mut error_code = None;
         let (result, detail, options) = match &s.outcome {
             Outcome::SkippedBudget => (UnresolvedReason::SkippedBudget, None, vec![]),
             Outcome::SkippedByUser { options } => (
@@ -207,11 +208,14 @@ pub(crate) fn build(i: &Inputs<'_>) -> String {
                 options.iter().map(place).collect(),
             ),
             Outcome::Unsupported(m) => (UnresolvedReason::Unsupported, Some(m.clone()), vec![]),
-            Outcome::ProviderError(e) => (
-                UnresolvedReason::ProviderError,
-                Some(format!("{:?}: {}", e.kind, e.message)),
-                vec![],
-            ),
+            Outcome::ProviderError(e) => {
+                error_code = Some(e.kind.into());
+                (
+                    UnresolvedReason::ProviderError,
+                    Some(e.message.clone()),
+                    vec![],
+                )
+            }
             Outcome::Waiting => (UnresolvedReason::NotSearched, None, vec![]),
             Outcome::NoCandidates {
                 returned,
@@ -223,7 +227,14 @@ pub(crate) fn build(i: &Inputs<'_>) -> String {
                 )),
                 vec![],
             ),
-            Outcome::Carried { result, detail } => (*result, detail.clone(), vec![]),
+            Outcome::Carried {
+                result,
+                detail,
+                error_code: code,
+            } => {
+                error_code = *code;
+                (*result, detail.clone(), vec![])
+            }
             Outcome::Candidates(_) | Outcome::Found(_) => {
                 (UnresolvedReason::NoCandidates, None, vec![])
             }
@@ -236,6 +247,7 @@ pub(crate) fn build(i: &Inputs<'_>) -> String {
                 anchor,
                 window,
                 result,
+                error_code,
                 detail,
                 options,
             }),
@@ -261,7 +273,7 @@ pub(crate) fn build(i: &Inputs<'_>) -> String {
         request_id: i.request_id.map(String::from),
         status,
         error: i.failure.map(|f| ResultError {
-            code: f.code.clone(),
+            code: f.code,
             message: f.message.clone(),
         }),
         provider: i.provider,
