@@ -1,4 +1,8 @@
-//! A blocking HTTP host for the Waylingo engine, for Rust programs.
+//! HTTP hosts for the Waylingo engine, built on reqwest.
+//!
+//! * [`drive`] / [`drive_resume`]: blocking, one request at a time. For scripts.
+//! * [`AsyncHost`]: async, parallel within a batch, map calls paced across every
+//!   query on the host, with an overall deadline. For apps and servers.
 //!
 //! ```no_run
 //! # use waylingo::*;
@@ -11,14 +15,19 @@
 //! Keys are added to each request only as its `auth` field says, at send time, and
 //! are never logged. Errors never include URLs (a URL may carry a key).
 
+mod asynchronous;
+mod blocking;
+mod wire;
+
 use std::time::Duration;
 
-use waylingo::{
-    AuthPlacement, CredentialSlot, Engine, HttpRequest, HttpResponse, Step, TransportError,
-    TripRequest, WaylingoError,
-};
+use waylingo::WaylingoError;
 
-/// The two secrets a query needs.
+pub use asynchronous::AsyncHost;
+pub use blocking::{drive, drive_resume};
+
+/// The two secrets a query needs. Leave `llm` empty for a local server that needs
+/// no key.
 pub struct Keys {
     pub llm: String,
     pub map: String,
@@ -36,119 +45,72 @@ pub enum DriveError {
     Engine(#[from] WaylingoError),
     #[error("could not create the HTTP client")]
     Client,
+    #[error("the query did not finish before the deadline")]
+    Timeout,
 }
 
-/// Gap between map requests: TomTom's default limit is 5 requests per second.
-const MAP_SPACING: Duration = Duration::from_millis(220);
+/// Gap between map requests in the blocking host, and the async host's default:
+/// TomTom's default limit is 5 requests per second.
+pub const MAP_SPACING: Duration = Duration::from_millis(220);
 
-/// Run one query to completion and return the GeoJSON.
-///
-/// # Errors
-/// Engine misuse or a failure to create the HTTP client. Provider and LLM failures
-/// are reported inside the GeoJSON, not as errors.
-pub fn drive(engine: &Engine, request: TripRequest, keys: &Keys) -> Result<String, DriveError> {
-    let client = reqwest::blocking::Client::builder()
-        .user_agent(concat!("waylingo/", env!("CARGO_PKG_VERSION")))
-        .build()
-        .map_err(|_| DriveError::Client)?;
-    let (mut session, mut step) = engine.start(request)?;
-    loop {
-        match step {
-            Step::Done { geojson } => return Ok(geojson),
-            Step::NeedRequests { requests } => {
-                let responses = requests.iter().map(|r| send(&client, r, keys)).collect();
-                step = session.step(responses)?;
-            }
-        }
-    }
+pub(crate) const USER_AGENT: &str = concat!("waylingo/", env!("CARGO_PKG_VERSION"));
+
+/// Root certificates to trust, when built with `bundled-roots`.
+#[cfg(feature = "bundled-roots")]
+fn bundled_roots() -> Vec<reqwest::Certificate> {
+    let roots: Vec<reqwest::Certificate> = webpki_root_certs::TLS_SERVER_ROOT_CERTS
+        .iter()
+        .filter_map(|c| reqwest::Certificate::from_der(c.as_ref()).ok())
+        .collect();
+    // Without roots every HTTPS request would fail with no hint why.
+    debug_assert!(
+        !roots.is_empty(),
+        "no bundled root certificate could be read"
+    );
+    roots
 }
 
-fn send(client: &reqwest::blocking::Client, req: &HttpRequest, keys: &Keys) -> HttpResponse {
-    let key = match req.credential {
-        CredentialSlot::Llm => keys.llm.as_str(),
-        CredentialSlot::Map => keys.map.as_str(),
-    };
-    let mut wait = Duration::from_millis(u64::from(req.not_before_ms));
-    if req.credential == CredentialSlot::Map {
-        wait += MAP_SPACING;
-    }
-    std::thread::sleep(wait);
-
-    let url = match &req.auth {
-        AuthPlacement::QueryParam { name } => {
-            let sep = if req.url.contains('?') { '&' } else { '?' };
-            format!("{}{sep}{name}={}", req.url, encode(key))
-        }
-        AuthPlacement::Header { .. } => req.url.clone(),
-    };
-    let mut b = match req.method.as_str() {
-        "POST" => client.post(&url),
-        _ => client.get(&url),
-    }
-    .timeout(Duration::from_millis(u64::from(req.timeout_ms.max(1_000))));
-    for h in &req.headers {
-        b = b.header(&h.name, &h.value);
-    }
-    if let AuthPlacement::Header { name, prefix } = &req.auth {
-        b = b.header(name, format!("{prefix}{key}"));
-    }
-    if let Some(body) = &req.body {
-        b = b.body(body.clone());
-    }
-    match b.send() {
-        Ok(r) => {
-            let status = r.status().as_u16();
-            let headers = r
-                .headers()
-                .iter()
-                .filter(|(n, _)| n.as_str().eq_ignore_ascii_case("retry-after"))
-                .filter_map(|(n, v)| {
-                    Some(waylingo::Header {
-                        name: n.to_string(),
-                        value: v.to_str().ok()?.to_string(),
-                    })
-                })
-                .collect();
-            let body = r.bytes().map(|b| b.to_vec()).unwrap_or_default();
-            HttpResponse {
-                id: req.id.clone(),
-                status,
-                headers,
-                body,
-                transport_error: None,
-            }
-        }
-        Err(e) => HttpResponse {
-            id: req.id.clone(),
-            status: 0,
-            headers: vec![],
-            body: vec![],
-            transport_error: Some(if e.is_timeout() {
-                TransportError::Timeout
-            } else {
-                TransportError::ConnectionFailed
-            }),
-        },
-    }
+/// TLS settings shared by both hosts.
+pub(crate) fn tls(b: reqwest::ClientBuilder) -> reqwest::ClientBuilder {
+    #[cfg(feature = "bundled-roots")]
+    let b = b.tls_certs_only(bundled_roots());
+    b
 }
 
-/// Percent-encode a key for a query string.
-fn encode(s: &str) -> String {
-    use std::fmt::Write;
-    let mut out = String::with_capacity(s.len());
-    for b in s.bytes() {
-        if b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_' | b'.' | b'~') {
-            out.push(char::from(b));
-        } else {
-            let _ = write!(out, "%{b:02X}");
-        }
-    }
-    out
+#[cfg(feature = "bundled-roots")]
+pub(crate) fn tls_blocking(
+    b: reqwest::blocking::ClientBuilder,
+) -> reqwest::blocking::ClientBuilder {
+    b.tls_certs_only(bundled_roots())
+}
+
+#[cfg(not(feature = "bundled-roots"))]
+pub(crate) fn tls_blocking(
+    b: reqwest::blocking::ClientBuilder,
+) -> reqwest::blocking::ClientBuilder {
+    b
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Run with `--features bundled-roots -- --ignored`: proves the bundled roots
+    /// complete a real TLS handshake (any HTTP status will do).
+    #[cfg(feature = "bundled-roots")]
+    #[test]
+    #[ignore = "network"]
+    fn bundled_roots_reach_https() {
+        let client = tls_blocking(reqwest::blocking::Client::builder())
+            .build()
+            .unwrap();
+        let r = client.get("https://api.tomtom.com/").send();
+        assert!(
+            r.is_ok(),
+            "TLS failed: {:?}",
+            r.err().map(|e| e.to_string())
+        );
+    }
 
     #[test]
     fn keys_debug_is_redacted() {
@@ -158,11 +120,5 @@ mod tests {
         };
         let s = format!("{k:?}");
         assert!(!s.contains("secret"));
-    }
-
-    #[test]
-    fn encodes_keys() {
-        assert_eq!(encode("ab-c_9"), "ab-c_9");
-        assert_eq!(encode("a+b/c"), "a%2Bb%2Fc");
     }
 }
