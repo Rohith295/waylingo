@@ -1,0 +1,20 @@
+[package]
+name = "waylingo-reqwest"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Blocking reqwest driver for the Waylingo engine, for Rust hosts."
+
+[lints]
+workspace = true
+
+[dependencies]
+reqwest = { version = "0.13.5", features = ["blocking"] }
+thiserror = "2.0.21"
+waylingo = { path = "../waylingo" }
+
+[dev-dependencies]
+serde_json = "1.0.154"
+waylingo-parse = { path = "../waylingo-parse" }
+waylingo-plan = { path = "../waylingo-plan" }
