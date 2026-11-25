@@ -83,9 +83,8 @@ These are true of the code as it is now.
 
 **LLM step and parser model**
 
-* The fine-tuned parser is English-only, trained on places in Europe, the US and India,
-  and gets 5 of 10 hand-written addresses right. Trips with a destination and no stops
-  are being added to its training data.
+* The fine-tuned parser is English-only and trained on places in Europe, the US and
+  India.
 * Running the parser on the device is planned, not built.
 * Gemini has not been tested live.
 
