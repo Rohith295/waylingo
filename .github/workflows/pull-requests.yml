@@ -1,0 +1,23 @@
+# Waylingo does not accept code contributions (see README.md). Pull requests from
+# anyone but the owner are closed with a short note. This workflow never checks out
+# or runs the pull request's code.
+name: pull-requests
+
+on:
+  pull_request_target:
+    types: [opened, reopened]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  close:
+    if: github.event.pull_request.user.login != github.repository_owner
+    runs-on: ubuntu-latest
+    steps:
+      - name: Close with a note
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.html_url }}
+        run: |
+          gh pr close "$PR" --comment "Thanks for your interest. Waylingo does not accept code contributions, so this pull request has been closed. Issues and discussions are welcome for bug reports, questions and ideas."
