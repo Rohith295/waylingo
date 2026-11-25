@@ -19,4 +19,6 @@ all = { level = "warn", priority = -1 }
 [profile.release]
 lto = true
 codegen-units = 1
-strip = true
+# Keep the symbol table: uniffi-bindgen reads the binding metadata from it, and
+# on Linux a full strip removes it ("No UniFFI metadata found").
+strip = "debuginfo"
