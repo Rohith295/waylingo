@@ -3,9 +3,15 @@ use sha2::{Digest, Sha256};
 use crate::{Plan, SurfaceIntent};
 
 /// JSON Schema of [`SurfaceIntent`], sent to the LLM for structured output.
+/// Sub-schemas are inlined (no `$defs`/`$ref`), because some LLM endpoints do not
+/// resolve references in tool or response schemas.
 #[must_use]
 pub fn surface_intent_schema() -> serde_json::Value {
-    serde_json::to_value(schemars::schema_for!(SurfaceIntent)).unwrap_or(serde_json::Value::Null)
+    let schema = schemars::generate::SchemaSettings::draft2020_12()
+        .with(|s| s.inline_subschemas = true)
+        .into_generator()
+        .into_root_schema_for::<SurfaceIntent>();
+    serde_json::to_value(schema).unwrap_or(serde_json::Value::Null)
 }
 
 /// SHA-256 of the plan's JSON form, lowercase hex. Field order is fixed by the

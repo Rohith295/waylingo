@@ -2,7 +2,7 @@
 
 use waylingo_plan::PlanError;
 
-pub(crate) const SYSTEM_PROMPT: &str = r#"You turn one trip request into JSON for a route-planning engine. You do not answer the user and you never invent facts.
+pub const SYSTEM_PROMPT: &str = r#"You turn one trip request into JSON for a route-planning engine. You do not answer the user and you never invent facts.
 
 Rules:
 - Output only the JSON object described by the schema. No prose.
@@ -17,19 +17,23 @@ Rules:
   - "every 200 km", "every 2 hours" -> every.
   - "halfway", "half way there" -> fraction 0.5. "a third of the way" -> fraction 0.333.
   - "near <waypoint>" or "after <waypoint>" -> offset from "waypoint:<n>" (0-based, in the order of "waypoints").
-- What: use a category when one fits: ev_charging, fuel, restaurant, fast_food, coffee, rest_area, hotel, parking, supermarket, pharmacy. Put a named chain in "brand" (McDonald's -> category fast_food, brand "McDonald's"). Use "text" only when no category fits.
+- What: for a generic kind of place, use a category when one fits: ev_charging, fuel, restaurant, fast_food, coffee, rest_area, hotel, parking, supermarket, pharmacy; otherwise "text" ("a bakery" -> text "bakery"). For a name (a chain, brand or specific place, known or not), put it in "brand" exactly as written and do not guess its category: "a McDonald's" -> brand "McDonald's". Add a category only when the user also says the kind: "a Shell petrol station" -> brand "Shell", category fuel. The map search finds the name.
 - Chargers: "fast charger" with no number -> min_power_kw 150. "rapid" -> 50. Use the user's number if given.
 - If the user asks for something you cannot express, leave it out. Do not guess.
+- If the text is not a trip request, or you cannot tell which stop or place is wanted, output exactly {"error":"not_understood","stops":[]}.
 
 Examples:
 Request: Drive to Berlin, find a fast charger every 200 km and a McDonald's 15 minutes before we arrive
-{"destination":"Berlin","stops":[{"id":"charger","what":{"category":"ev_charging","min_power_kw":150},"anchor":{"kind":"every","amount":{"value":200,"unit":"km"}}},{"id":"food","what":{"category":"fast_food","brand":"McDonald's"},"anchor":{"kind":"offset","from":"destination","direction":"before","amount":{"value":15,"unit":"min"}}}]}
+{"destination":"Berlin","stops":[{"id":"charger","what":{"category":"ev_charging","min_power_kw":150},"anchor":{"kind":"every","amount":{"value":200,"unit":"km"}}},{"id":"food","what":{"brand":"McDonald's"},"anchor":{"kind":"offset","from":"destination","direction":"before","amount":{"value":15,"unit":"min"}}}]}
 
 Request: coffee in about 20 minutes
 {"stops":[{"what":{"category":"coffee"},"anchor":{"kind":"offset","from":"origin","direction":"after","amount":{"value":20,"unit":"min"}}}]}
 
 Request: from Utrecht to Paris avoiding tolls, lunch halfway
 {"origin":"Utrecht","destination":"Paris","avoid":["tolls"],"stops":[{"id":"lunch","what":{"category":"restaurant"},"anchor":{"kind":"fraction","value":0.5}}]}"#;
+
+/// System prompt for fine-tuned models. Training data uses exactly this string.
+pub const COMPACT_SYSTEM_PROMPT: &str = "Convert the trip request to Waylingo JSON.";
 
 /// Appended to the system prompt in `PromptJson` mode, followed by the schema.
 pub(crate) const SCHEMA_PREAMBLE: &str = "\n\nThe JSON must match this JSON Schema:\n";

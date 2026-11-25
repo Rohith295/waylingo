@@ -26,8 +26,10 @@ pub(crate) fn build_request(
     let mut body = json!({
         "model": cfg.model,
         "messages": conv.messages(),
-        "temperature": 0,
     });
+    if let Some(t) = cfg.temperature {
+        body["temperature"] = json!(t);
+    }
     match cfg.mode {
         LlmMode::JsonSchema => {
             body["response_format"] = json!({
@@ -40,11 +42,14 @@ pub(crate) fn build_request(
                 "type": "function",
                 "function": {
                     "name": TOOL_NAME,
-                    "description": "Submit the structured trip request.",
+                    "description": "Submit the structured trip request. Always call this tool.",
                     "parameters": llm_schema()
                 }
             }]);
-            body["tool_choice"] = json!({ "type": "function", "function": { "name": TOOL_NAME } });
+            // "auto", not a forced function: some endpoints (Anthropic's compatibility
+            // layer with some models) reject forced tool choice. If the model answers
+            // in text instead, `extract` reads the JSON from the content.
+            body["tool_choice"] = json!("auto");
         }
         LlmMode::PromptJson => {}
     }
@@ -144,7 +149,11 @@ mod tests {
         assert!(!r.url.contains("key"));
         let b = body(&r);
         assert_eq!(b["model"], "m1");
-        assert_eq!(b["temperature"], 0);
+        assert!(b.get("temperature").is_none(), "left out unless configured");
+        let mut cfg0 = cfg.clone();
+        cfg0.temperature = Some(0.0);
+        let b0 = body(&build_request(&conv(), &cfg0, "llm-1".into(), 0));
+        assert_eq!(b0["temperature"], 0.0);
         assert_eq!(b["response_format"]["type"], "json_schema");
         assert!(b["response_format"]["json_schema"]["schema"]["properties"]["stops"].is_object());
         assert!(
@@ -161,7 +170,7 @@ mod tests {
         let cfg = LlmConfig::new("http://localhost:11434/v1", "llama", LlmMode::ToolCall);
         let b = body(&build_request(&conv(), &cfg, "llm-0".into(), 0));
         assert_eq!(b["tools"][0]["function"]["name"], TOOL_NAME);
-        assert_eq!(b["tool_choice"]["function"]["name"], TOOL_NAME);
+        assert_eq!(b["tool_choice"], "auto");
         assert!(b.get("response_format").is_none());
     }
 

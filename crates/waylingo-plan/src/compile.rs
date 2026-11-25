@@ -10,11 +10,7 @@ use crate::{
     TripContext, What,
 };
 
-/// Longest interval or offset accepted: 5 000 km or 72 h.
-const MAX_DISTANCE_M: f64 = 5_000_000.0;
-const MAX_DURATION_S: f64 = 72.0 * 3600.0;
-const MAX_TOP_N: u8 = 5;
-const MAX_STOPS: usize = 10;
+use crate::validate::{MAX_DISTANCE_M, MAX_DURATION_S, MAX_STOPS, MAX_TOP_N};
 
 /// One validation problem, phrased so it can go straight into a repair prompt.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, thiserror::Error)]
@@ -28,7 +24,7 @@ pub struct PlanError {
 }
 
 impl PlanError {
-    fn new(pointer: impl Into<String>, reason: impl Into<String>) -> Self {
+    pub(crate) fn new(pointer: impl Into<String>, reason: impl Into<String>) -> Self {
         Self {
             pointer: pointer.into(),
             reason: reason.into(),
@@ -46,6 +42,12 @@ impl PlanError {
 /// # Errors
 /// A non-empty list of [`PlanError`]s when the intent cannot become a valid plan.
 pub fn compile(s: &SurfaceIntent, ctx: &TripContext) -> Result<Plan, Vec<PlanError>> {
+    if let Some(e) = &s.error {
+        return Err(vec![PlanError::new(
+            "/error",
+            format!("the request was reported as {e:?}"),
+        )]);
+    }
     let mut errs = Vec::new();
 
     let origin = place(s.origin.as_deref(), "/origin", ctx, &mut errs, Role::Origin);
@@ -115,23 +117,29 @@ pub fn compile(s: &SurfaceIntent, ctx: &TripContext) -> Result<Plan, Vec<PlanErr
         }
     }
 
-    match (origin, destination) {
-        (Some(origin), Some(destination)) if errs.is_empty() => Ok(Plan {
-            schema_version: SCHEMA_VERSION.to_string(),
-            origin,
-            destination,
-            waypoints,
-            departure: Departure {
-                time: ctx.departure_time.clone(),
-                timezone: ctx.timezone.clone(),
-            },
-            vehicle: ctx.vehicle.clone().unwrap_or_default(),
-            avoid,
-            max_detour_s,
-            stop_requests: stops,
-        }),
-        _ => Err(errs),
+    let (Some(origin), Some(destination)) = (origin, destination) else {
+        return Err(errs);
+    };
+    if !errs.is_empty() {
+        return Err(errs);
     }
+    let plan = Plan {
+        schema_version: SCHEMA_VERSION.to_string(),
+        origin,
+        destination,
+        waypoints,
+        departure: Departure {
+            time: ctx.departure_time.clone(),
+            timezone: ctx.timezone.clone(),
+        },
+        vehicle: ctx.vehicle.clone().unwrap_or_default(),
+        avoid,
+        max_detour_s,
+        stop_requests: stops,
+    };
+    // The same limits apply to plans read back from a previous result.
+    plan.validate()?;
+    Ok(plan)
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]

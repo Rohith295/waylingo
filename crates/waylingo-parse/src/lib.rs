@@ -21,11 +21,14 @@
 
 mod config;
 mod conversation;
+mod ground;
 mod input;
 mod openai;
 mod parser;
 mod prompt;
 
-pub use config::{LlmConfig, LlmMode};
+pub use config::{LlmConfig, LlmMode, PromptStyle};
+pub use ground::ground_in_query;
 pub use input::{InputError, ParseInput};
 pub use parser::{FailureCode, ParseFailure, ParseStep, Parser};
+pub use prompt::{COMPACT_SYSTEM_PROMPT, SYSTEM_PROMPT};

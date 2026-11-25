@@ -20,7 +20,11 @@ pub(crate) struct Conversation {
 
 impl Conversation {
     pub(crate) fn new(input: &ParseInput, system_suffix: Option<&str>) -> Self {
-        let mut system = SYSTEM_PROMPT.to_string();
+        Self::with_system(input, SYSTEM_PROMPT, system_suffix)
+    }
+
+    pub(crate) fn with_system(input: &ParseInput, base: &str, system_suffix: Option<&str>) -> Self {
+        let mut system = base.to_string();
         if let Some(s) = system_suffix {
             system.push_str(s);
         }
