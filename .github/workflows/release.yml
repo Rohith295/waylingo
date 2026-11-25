@@ -3,16 +3,17 @@
 # Run it from the Actions tab with a version (must match Cargo.toml's workspace
 # version). With "publish" off (the default) it is a dry run: everything is built
 # and kept as workflow artifacts, nothing leaves GitHub. With "publish" on, it also
-# commits Package.swift, tags the release, creates the GitHub Release, and publishes
-# to PyPI and Maven Central. Each publish job runs in a GitHub environment
-# ("pypi", "maven-central") that can require a manual approval.
+# tags the release (the tag's commit carries the release Package.swift and Swift
+# source; main is not changed, since it only accepts pull requests), creates the
+# GitHub Release, and publishes to PyPI and Maven Central. Each publish job runs in
+# a GitHub environment ("pypi", "maven-central") limited to the main branch.
 #
 # Set-up before the first real publish:
 #   * PyPI: add this repository as a trusted publisher for the "waylingo" project
 #     (environment "pypi"); no token is stored.
 #   * Maven Central: a verified namespace (WAYLINGO_GROUP variable, for example
 #     io.github.<owner>), and secrets MAVEN_CENTRAL_USERNAME, MAVEN_CENTRAL_PASSWORD,
-#     SIGNING_KEY, SIGNING_KEY_PASSWORD in the "maven-central" environment.
+#     SIGNING_KEY, SIGNING_KEY_PASSWORD (repository or "maven-central" environment).
 name: release
 
 on:
@@ -190,7 +191,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
-      - name: Point Package.swift at this release, commit the Swift sources, tag
+      - name: Tag a commit with Package.swift pointing at this release
         env:
           VERSION: ${{ inputs.version }}
           CHECKSUM: ${{ needs.apple.outputs.checksum }}
@@ -204,8 +205,10 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add Package.swift swift/Sources/Waylingo/Waylingo.swift
           git commit -m "Release v$VERSION"
+          # Only the tag is pushed: SwiftPM resolves packages by tag, and main is
+          # protected.
           git tag "v$VERSION"
-          git push origin HEAD "v$VERSION"
+          git push origin "v$VERSION"
       - name: Create the GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
