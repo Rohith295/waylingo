@@ -136,8 +136,8 @@ fn http_url(url: &str) -> bool {
 
 impl WaylingoConfig {
     pub(crate) fn engine_config(&self) -> Result<EngineConfig, WaylingoError> {
-        let bad = |message: &str| WaylingoError::InvalidConfig {
-            message: message.into(),
+        let bad = |detail: &str| WaylingoError::InvalidConfig {
+            detail: detail.into(),
         };
         let pick = |own: &Option<String>, default: &str| -> Result<String, WaylingoError> {
             match own {
@@ -217,7 +217,7 @@ impl WaylingoConfig {
         let rps = self.map_requests_per_second.unwrap_or(DEFAULT_MAP_RPS);
         if !(rps.is_finite() && rps > 0.0 && rps <= 1_000.0) {
             return Err(WaylingoError::InvalidConfig {
-                message: "map_requests_per_second must be between 0 and 1000".into(),
+                detail: "map_requests_per_second must be between 0 and 1000".into(),
             });
         }
         Ok(Duration::from_secs_f64(1.0 / rps))
@@ -227,7 +227,7 @@ impl WaylingoConfig {
         let ms = self.timeout_ms.unwrap_or(DEFAULT_TIMEOUT_MS);
         if ms < MIN_TIMEOUT_MS {
             return Err(WaylingoError::InvalidConfig {
-                message: format!("timeout_ms must be at least {MIN_TIMEOUT_MS}"),
+                detail: format!("timeout_ms must be at least {MIN_TIMEOUT_MS}"),
             });
         }
         Ok(Duration::from_millis(u64::from(ms)))
@@ -243,12 +243,12 @@ impl WaylingoConfig {
         let blank = |k: Option<&str>| k.is_none_or(|k| k.trim().is_empty());
         if self.map_base_url.is_none() && blank(Some(map_key)) {
             return Err(WaylingoError::InvalidConfig {
-                message: "map_key is empty (it may be empty only with map_base_url)".into(),
+                detail: "map_key is empty (it may be empty only with map_base_url)".into(),
             });
         }
         if self.llm.needs_key() && blank(llm_key) {
             return Err(WaylingoError::InvalidConfig {
-                message: "llm_key is required for this LLM backend unless base_url is set".into(),
+                detail: "llm_key is required for this LLM backend unless base_url is set".into(),
             });
         }
         Ok(())
