@@ -1,12 +1,13 @@
-# Nightly: the real map and LLM APIs, to notice provider-side changes (response
-# format, retired models, auth) before users do. Statuses and counts only are
-# printed; no provider data and no keys reach the logs.
+# Nightly: the real map provider APIs, to notice provider-side changes (response
+# format, auth, endpoints) before users do. The LLM step is answered with a fixed
+# plan, so only map keys are needed. Statuses and counts only are printed; no
+# provider data and no keys reach the logs.
 #
-# Secrets (repository or "live" environment): TOMTOM_API_KEY, HERE_API_KEY,
-# ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY. Variables: OPENAI_MODEL,
-# GEMINI_MODEL, ANTHROPIC_MODEL (optional), and WAYLINGO_LIVE_REQUIRE (which
-# services must have keys, default "tomtom,here,anthropic"). A case whose keys are
-# missing is skipped unless its service is required.
+# Secrets: TOMTOM_API_KEY, HERE_API_KEY. Variable WAYLINGO_LIVE_REQUIRE lists the
+# providers that must have keys (default "tomtom,here").
+#
+# The LLM backends have their own live tests (crates/waylingo-ffi/tests/live.rs),
+# run by hand when needed.
 name: live
 
 on:
@@ -25,9 +26,8 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  contract:
+  maps:
     runs-on: ubuntu-latest
-    environment: live
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
@@ -37,15 +37,9 @@ jobs:
         env:
           WAYLINGO_TOMTOM_KEY: ${{ secrets.TOMTOM_API_KEY }}
         run: cargo test -p waylingo-providers --test live_tomtom -- --ignored --nocapture
-      - name: End to end through the public API
+      - name: Engine end to end against TomTom and HERE
         env:
           TOMTOM_API_KEY: ${{ secrets.TOMTOM_API_KEY }}
           HERE_API_KEY: ${{ secrets.HERE_API_KEY }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          ANTHROPIC_MODEL: ${{ vars.ANTHROPIC_MODEL }}
-          OPENAI_MODEL: ${{ vars.OPENAI_MODEL }}
-          GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
-          WAYLINGO_LIVE_REQUIRE: ${{ vars.WAYLINGO_LIVE_REQUIRE || 'tomtom,here,anthropic' }}
-        run: cargo test -p waylingo-ffi --test live -- --ignored --test-threads 1 --nocapture
+          WAYLINGO_LIVE_REQUIRE: ${{ vars.WAYLINGO_LIVE_REQUIRE || 'tomtom,here' }}
+        run: cargo test -p waylingo-reqwest --test live_maps -- --ignored --test-threads 1 --nocapture

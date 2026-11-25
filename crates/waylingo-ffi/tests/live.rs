@@ -11,7 +11,7 @@
 //!
 //! `WAYLINGO_LIVE_REQUIRE` (comma-separated: tomtom, here, anthropic, openai,
 //! gemini) turns a missing key for those services into a failure instead of a
-//! skip, so a scheduled run cannot pass by skipping everything.
+//! skip. Run by hand; the nightly job covers the map providers only.
 //!
 //! Output is statuses, codes and counts only. Place names, addresses and
 //! coordinates from the providers are never printed, and keys never are.
