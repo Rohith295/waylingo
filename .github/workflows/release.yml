@@ -89,6 +89,12 @@ jobs:
   apple:
     needs: check
     runs-on: macos-latest
+    # Build Rust and the C code of dependencies (aws-lc) for the same minimum OS
+    # versions as Package.swift; otherwise C objects target the newest SDK and the
+    # link fails (___chkstk_darwin).
+    env:
+      IPHONEOS_DEPLOYMENT_TARGET: "15.0"
+      MACOSX_DEPLOYMENT_TARGET: "12.0"
     outputs:
       checksum: ${{ steps.zip.outputs.checksum }}
     steps:
