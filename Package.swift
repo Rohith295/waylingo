@@ -18,7 +18,7 @@ let package = Package(
         .library(name: "Waylingo", targets: ["Waylingo"]),
     ],
     targets: [
-        .binaryTarget(name: "WaylingoFFI", url: "https://example.invalid/WaylingoFFI.xcframework.zip", checksum: "0000000000000000000000000000000000000000000000000000000000000000"),
+        .binaryTarget(name: "WaylingoFFI", url: "https://github.com/Rohith295/waylingo/releases/download/v0.1.1/WaylingoFFI.xcframework.zip", checksum: "47d3dc46d8517a142fbb7d1941690e7d81706882637881826cdaa02c2fa2fced"),
         .target(
             name: "Waylingo",
             dependencies: ["WaylingoFFI"],
