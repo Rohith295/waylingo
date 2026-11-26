@@ -76,3 +76,12 @@ closed; turn on **Remember keys on this browser** to keep them in the browser's 
 storage, and use **Forget saved keys** to remove them.
 
 The demo is for trying Waylingo on your own machine. Do not expose it on a network.
+
+## If something does not start
+
+* `couldn't bind HTTP server socket ... port: 8765` from `llama-server`: a model server
+  is already running on that port. Use it, or stop it first.
+* `Address already in use` from `server.py`: the demo is already running. Open
+  http://127.0.0.1:8770, or start another copy with `python demo/server.py --port 8771`.
+
+More in the [demo chapter](https://rohith295.github.io/waylingo/demo.html) of the docs.

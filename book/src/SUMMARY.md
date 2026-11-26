@@ -15,6 +15,7 @@
 
 # Using it
 
+- [Try the demo](demo.md)
 - [Quick start](quick-start.md)
 - [Bindings: Python, Swift, Kotlin](bindings.md)
 - [Errors](errors.md)

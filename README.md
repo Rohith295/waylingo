@@ -24,6 +24,23 @@ Preview, version 0.1.2. The Rust engine, the TomTom and HERE adapters and the
 Python, Swift and Kotlin bindings work and are tested. The API may still change
 before 1.0.
 
+## Try it in your browser
+
+[![A 2-minute walkthrough of the Waylingo demo](book/src/media/waylingo-demo-poster.jpg)](https://rohith295.github.io/waylingo/demo.html)
+
+The [demo](demo/README.md) is a small web app that runs on your computer: paste a
+TomTom or HERE key, type a trip, and see the route, the stops and their coordinates on
+a map. Change a stop, skip it or pick another match for a place, and see the new route
+without another language model call. No LLM key is needed with the built-in model.
+
+```bash
+pip install -U waylingo
+python demo/server.py
+```
+
+Open http://127.0.0.1:8770. The [demo chapter](https://rohith295.github.io/waylingo/demo.html)
+explains each step, including running the built-in model.
+
 ## Where it runs
 
 | Where | Language | Install |
@@ -34,8 +51,7 @@ before 1.0.
 | Rust | Rust | crates `waylingo` and `waylingo-reqwest` on crates.io |
 
 Examples for each: the
-[quick start](https://rohith295.github.io/waylingo/quick-start.html). To try it in a
-browser with your own keys, run the [demo](demo/README.md). Full docs:
+[quick start](https://rohith295.github.io/waylingo/quick-start.html). Full docs:
 **https://rohith295.github.io/waylingo/**
 
 ## Crates

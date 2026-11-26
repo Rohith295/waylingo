@@ -19,7 +19,8 @@ result without calling the LLM again.
 
 Waylingo runs in **Android apps (Kotlin), iOS and macOS apps (Swift), Python and
 Rust**: the engine is written in Rust, and the same API is generated for the other
-three languages. [Quick start](quick-start.md) shows each one.
+three languages. [Quick start](quick-start.md) shows each one, and
+[Try the demo](demo.md) runs it in your browser with your own keys.
 
 Status: preview, version 0.1.2. The engine, the TomTom and HERE adapters and the
 Python, Swift and Kotlin bindings work and have tests. Packages are on PyPI, Maven
