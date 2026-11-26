@@ -3,15 +3,14 @@
 Waylingo is a Rust library with the same API in Python, Swift and Kotlin, so it runs
 in Android and iOS apps, on servers and in scripts:
 
-| Where | Language | Install after the first release | Until then |
-| :--- | :--- | :--- | :--- |
-| Android | Kotlin | Gradle: `io.github.rohith295:waylingo-android` | [build the AAR](#android-kotlin) |
-| iOS, macOS | Swift | Swift Package: `https://github.com/Rohith295/waylingo` | [build the XCFramework](#ios-and-macos-swift) |
-| Servers, scripts | Python | `pip install waylingo` | [build with maturin](#python) |
-| Anything in Rust | Rust | crates `waylingo` and `waylingo-reqwest` | [Git dependency](#rust) |
+| Where | Language | Install |
+| :--- | :--- | :--- |
+| Android | Kotlin | Gradle: `io.github.rohith295:waylingo-android` ([below](#android-kotlin)) |
+| iOS, macOS | Swift | Swift Package: `https://github.com/Rohith295/waylingo` ([below](#ios-and-macos-swift)) |
+| Servers, scripts | Python | `pip install waylingo` ([below](#python)) |
+| Anything in Rust | Rust | crates `waylingo` and `waylingo-reqwest` ([below](#rust)) |
 
-No package is published yet; each section below shows how to build from the
-repository today. Every example plans one trip and needs a map key (TomTom here) and
+The current version is 0.1.0. Every example plans one trip and needs a map key (TomTom here) and
 an LLM key (Anthropic here). See [Keys in shipped apps](bindings.md#keys-in-shipped-apps)
 before putting keys in an app.
 
@@ -20,13 +19,12 @@ not send it to an LLM.
 
 ## Python
 
-Build and install the bindings from a checkout (needs Rust):
-
 ```bash
-cd crates/waylingo-ffi
-pip install maturin
-maturin develop --release
+pip install waylingo
 ```
+
+Wheels are published for Linux (x86_64, aarch64), macOS and Windows, Python 3.9 and
+later.
 
 ```python
 import os
@@ -56,12 +54,9 @@ else:
 `model=None` uses the default Anthropic model; set it explicitly in shipped apps.
 In async code use `await app.plan(...)`.
 
-After the first release: `pip install waylingo`.
-
 ## iOS and macOS (Swift)
 
-After the first release, add the package in Xcode (File > Add Package Dependencies)
-with the URL `https://github.com/Rohith295/waylingo` and a version, or in
+Add the package in Xcode (File > Add Package Dependencies) with the URL `https://github.com/Rohith295/waylingo` and a version, or in
 `Package.swift`:
 
 ```swift
@@ -69,9 +64,8 @@ with the URL `https://github.com/Rohith295/waylingo` and a version, or in
 // and in the target: .product(name: "Waylingo", package: "waylingo")
 ```
 
-Until then, build the XCFramework from a checkout as described in the
-[bindings guide](https://github.com/Rohith295/waylingo/blob/main/crates/waylingo-ffi/README.md#swift-ios-macos)
-and add it and `Waylingo.swift` to the app.
+The package downloads a prebuilt XCFramework from the GitHub Release; no Rust is
+needed.
 
 ```swift
 import Waylingo
@@ -96,7 +90,7 @@ The minimum versions are iOS 15 and macOS 12.
 
 ## Android (Kotlin)
 
-After the first release, add the library in `build.gradle.kts`:
+Add the library from Maven Central in `build.gradle.kts`:
 
 ```kotlin
 dependencies {
@@ -104,9 +98,7 @@ dependencies {
 }
 ```
 
-It brings JNA and kotlinx-coroutines with it. Until then, build the native libraries
-and the Kotlin source from a checkout as described in the
-[bindings guide](https://github.com/Rohith295/waylingo/blob/main/crates/waylingo-ffi/README.md#kotlin-android-jvm).
+It brings JNA and kotlinx-coroutines with it.
 
 The app needs the internet permission in `AndroidManifest.xml`:
 
@@ -142,8 +134,8 @@ The minimum Android version is 7.0 (API 24).
 
 ```toml
 [dependencies]
-waylingo = { git = "https://github.com/Rohith295/waylingo" }
-waylingo-reqwest = { git = "https://github.com/Rohith295/waylingo" }
+waylingo = "0.1"
+waylingo-reqwest = "0.1"
 ```
 
 `src/main.rs`:

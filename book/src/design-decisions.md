@@ -90,9 +90,8 @@ These are true of the code as it is now.
 
 **Packaging**
 
-* No package is published. Kotlin is tested on the JVM in CI but not on Android; iOS and
-  Android device builds are not verified end to end; the release workflow has not had a
-  first run.
+* Version 0.1.0 is published. Kotlin is tested on the JVM in CI but not on Android; iOS
+  and Android device builds are not verified end to end in an app.
 
 ## The original design document
 

@@ -20,19 +20,20 @@ one serving Waylingo's own fine-tuned parser model). Map data never reaches the 
 
 ## Status
 
-Preview. The Rust engine, the TomTom and HERE adapters and the Python, Swift and
-Kotlin bindings work and are tested; packages are not published yet.
+Preview, version 0.1.0. The Rust engine, the TomTom and HERE adapters and the
+Python, Swift and Kotlin bindings work and are tested. The API may still change
+before 1.0.
 
 ## Where it runs
 
 | Where | Language | Install |
 | :--- | :--- | :--- |
-| Android | Kotlin | `io.github.rohith295:waylingo-android` (Maven Central, after the first release) |
-| iOS, macOS | Swift | Swift Package `https://github.com/Rohith295/waylingo` (after the first release) |
-| Servers, scripts | Python | `pip install waylingo` (after the first release) |
-| Rust | Rust | crates `waylingo`, `waylingo-reqwest` |
+| Android | Kotlin | `io.github.rohith295:waylingo-android` on Maven Central |
+| iOS, macOS | Swift | Swift Package `https://github.com/Rohith295/waylingo` |
+| Servers, scripts | Python | `pip install waylingo` |
+| Rust | Rust | crates `waylingo` and `waylingo-reqwest` on crates.io |
 
-Until the first release, build from source: see the
+Examples for each: the
 [quick start](https://rohith295.github.io/waylingo/quick-start.html). Full docs:
 **https://rohith295.github.io/waylingo/**
 

@@ -238,13 +238,12 @@ geometry to null) before sending a result back; the signature does not cover the
 | `Gemini` | Google's OpenAI-compatible endpoint | not yet tested live |
 | `OpenAiCompatible` | your `base_url` | local servers; set `fine_tuned` for Waylingo's model |
 
-## Before publishing
+## Releases
 
 `.github/workflows/release.yml` builds the wheels (manylinux, musllinux, macOS
 universal2, Windows) and sdist, the XCFramework for the root `Package.swift`, and
 the AAR from `android/`. It is a dry run unless started with `publish` on. CI
 compiles and tests the Kotlin bindings on the JVM.
 
-Not done yet: a first run of these workflows on GitHub (the Android module and the
-Kotlin test have not been built locally), and the PyPI trusted publisher, Maven
-Central namespace and signing key.
+Version 0.1.0 was published with this workflow. Most apps should use the published
+packages; the build steps above are for working on Waylingo itself.
