@@ -10,7 +10,7 @@ in Android and iOS apps, on servers and in scripts:
 | Servers, scripts | Python | `pip install waylingo` ([below](#python)) |
 | Anything in Rust | Rust | crates `waylingo` and `waylingo-reqwest` ([below](#rust)) |
 
-The current version is 0.1.1. Every example plans one trip and needs a map key (TomTom here) and
+The current version is 0.1.2. Every example plans one trip and needs a map key (TomTom here) and
 an LLM key (Anthropic here). See [Keys in shipped apps](bindings.md#keys-in-shipped-apps)
 before putting keys in an app.
 
@@ -65,7 +65,7 @@ Add the package in Xcode (File > Add Package Dependencies) with the URL `https:/
 `Package.swift`:
 
 ```swift
-.package(url: "https://github.com/Rohith295/waylingo", from: "0.1.1")
+.package(url: "https://github.com/Rohith295/waylingo", from: "0.1.2")
 // and in the target: .product(name: "Waylingo", package: "waylingo")
 ```
 
@@ -99,7 +99,7 @@ Add the library from Maven Central in `build.gradle.kts`:
 
 ```kotlin
 dependencies {
-    implementation("io.github.rohith295:waylingo-android:0.1.1")
+    implementation("io.github.rohith295:waylingo-android:0.1.2")
 }
 ```
 
