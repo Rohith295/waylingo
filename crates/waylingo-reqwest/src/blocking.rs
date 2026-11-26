@@ -20,6 +20,20 @@ pub fn drive(engine: &Engine, request: TripRequest, keys: &Keys) -> Result<Strin
     run(session, step, keys)
 }
 
+/// Run only the LLM step (see [`Engine::parse`]) and return the
+/// [`waylingo::ParseResult`] JSON. Makes no map call.
+///
+/// # Errors
+/// As [`drive`].
+pub fn drive_parse(
+    engine: &Engine,
+    request: TripRequest,
+    keys: &Keys,
+) -> Result<String, DriveError> {
+    let (session, step) = engine.parse(request)?;
+    run(session, step, keys)
+}
+
 /// Continue a previous result with the end user's choices (see
 /// [`Engine::resume`]) and return the new GeoJSON.
 ///

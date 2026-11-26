@@ -46,6 +46,8 @@ pub enum Step {
     /// `auth` says. Honour `not_before_ms` and `timeout_ms`.
     NeedRequests { requests: Vec<HttpRequest> },
     /// The RFC 7946 `FeatureCollection`, serialized. See [`crate::TripResult`].
+    /// For a session started by [`Engine::parse`], a [`crate::ParseResult`] JSON
+    /// document instead.
     Done { geojson: String },
 }
 
@@ -110,6 +112,7 @@ impl Engine {
             stop_legs: Vec::new(),
             pins: HashMap::new(),
             resumed: false,
+            parse_only: false,
             assumptions: Vec::new(),
             warnings: Vec::new(),
             failure: None,
@@ -122,6 +125,20 @@ impl Engine {
     /// [`WaylingoError::InvalidRequest`] for an empty or oversized query or
     /// out-of-range settings.
     pub fn start(&self, req: TripRequest) -> Result<(Session, Step), WaylingoError> {
+        self.begin(req, false)
+    }
+
+    /// Run only the LLM step and return the plan, without any map call. The
+    /// session's [`Step::Done`] carries a [`crate::ParseResult`] document. Use it to
+    /// show the end user what was understood, or to test a prompt or model.
+    ///
+    /// # Errors
+    /// As [`Engine::start`].
+    pub fn parse(&self, req: TripRequest) -> Result<(Session, Step), WaylingoError> {
+        self.begin(req, true)
+    }
+
+    fn begin(&self, req: TripRequest, parse_only: bool) -> Result<(Session, Step), WaylingoError> {
         req.context
             .defaults
             .validate()
@@ -130,6 +147,7 @@ impl Engine {
             .map_err(|e| WaylingoError::InvalidRequest(e.to_string()))?;
         let (parser, first) = Parser::start(&input, self.config.llm.clone());
         let mut s = self.session(req.context, req.request_id);
+        s.parse_only = parse_only;
         s.parser = Some(parser);
         s.llm_calls = 1;
         s.pending.insert(
@@ -253,6 +271,8 @@ pub struct Session {
     pins: HashMap<(String, usize), StopPick>,
     /// True for a session started by [`Engine::resume`].
     resumed: bool,
+    /// True for a session started by [`Engine::parse`]: stop after the LLM step.
+    parse_only: bool,
     assumptions: Vec<String>,
     warnings: Vec<String>,
     failure: Option<Failure>,
@@ -443,6 +463,9 @@ impl Session {
     }
 
     fn advance(&mut self) -> Step {
+        if self.parse_only {
+            return self.finish_parse();
+        }
         loop {
             if self.failure.is_some() {
                 return self.finish();
@@ -512,6 +535,36 @@ impl Session {
             signing_key: self.cfg.signing_key.as_ref(),
         });
         Step::Done { geojson }
+    }
+}
+
+impl Session {
+    fn finish_parse(&mut self) -> Step {
+        self.phase = Phase::Done;
+        self.parser = None;
+        let doc = crate::ParseResult {
+            parse_schema: crate::PARSE_SCHEMA_VERSION.into(),
+            plan_schema: waylingo_plan::SCHEMA_VERSION.into(),
+            request_id: self.request_id.clone(),
+            status: if self.failure.is_some() {
+                crate::ParseStatus::Failed
+            } else {
+                crate::ParseStatus::Parsed
+            },
+            error: self.failure.as_ref().map(|f| crate::ResultError {
+                code: f.code,
+                message: f.message.clone(),
+            }),
+            plan: self.plan.clone(),
+            plan_hash: self.plan.as_ref().map(waylingo_plan::plan_hash),
+            usage: crate::Usage {
+                llm_calls: self.llm_calls,
+                map_calls: 0,
+            },
+        };
+        Step::Done {
+            geojson: serde_json::to_string(&doc).expect("a parse result serializes"),
+        }
     }
 }
 

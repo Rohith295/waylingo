@@ -14,6 +14,11 @@ The current version is 0.1.0. Every example plans one trip and needs a map key (
 an LLM key (Anthropic here). See [Keys in shipped apps](bindings.md#keys-in-shipped-apps)
 before putting keys in an app.
 
+To try requests in a browser before writing code, run the
+[demo](https://github.com/Rohith295/waylingo/tree/main/demo): a local page where you
+paste your own keys (or use the built-in model) and see the route, the stops and
+their coordinates on a map.
+
 The output contains map provider content (place names). Show it to the end user; do
 not send it to an LLM.
 

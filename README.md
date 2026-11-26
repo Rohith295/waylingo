@@ -34,7 +34,8 @@ before 1.0.
 | Rust | Rust | crates `waylingo` and `waylingo-reqwest` on crates.io |
 
 Examples for each: the
-[quick start](https://rohith295.github.io/waylingo/quick-start.html). Full docs:
+[quick start](https://rohith295.github.io/waylingo/quick-start.html). To try it in a
+browser with your own keys, run the [demo](demo/README.md). Full docs:
 **https://rohith295.github.io/waylingo/**
 
 ## Crates

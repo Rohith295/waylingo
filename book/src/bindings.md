@@ -25,7 +25,8 @@ One object, created once per process:
 Waylingo(config, map_key, llm_key = None, signing_key = None)
   plan(trip)                                  -> TripOutput    async
   reroute(previous_geojson, choices, request_id = None) -> TripOutput    async
-  plan_blocking(trip), reroute_blocking(...)                  blocking
+  parse(trip)                                 -> ParseOutput   async
+  plan_blocking(trip), reroute_blocking(...), parse_blocking(trip)   blocking
 is_retryable(code), needs_user(code), version()
 ```
 
@@ -77,6 +78,33 @@ val out = app.plan(TripInput(
     query = "Drive to Utrecht, coffee halfway",
     currentLocation = LatLng(52.3702, 4.8952)))
 ```
+
+## Parse only
+
+`parse` runs only the LLM step: one LLM call (more if the reply needs a repair) and no
+map call. It returns the plan the request compiled to, for example to show the end
+user what was understood before spending map calls, or to test a model on your own
+requests.
+
+```python
+p = app.parse_blocking(w.TripInput(
+    query="Drive to Utrecht, coffee halfway",
+    current_location=w.LatLng(lat=52.3702, lng=4.8952)))
+if p.status == w.ParseStatus.PARSED:
+    print(p.plan_json)   # the same "plan" a plan() call puts in its GeoJSON
+else:
+    print(p.error_code, p.error_message)
+```
+
+Nothing is looked up on the map, so the plan holds the place names from the request,
+not coordinates; the only coordinates in it are the ones the app passed in, such as
+`current_location` as the origin. The error codes are the same as for `plan`. A later
+`plan` call parses the request again; there is no call that routes a plan you already
+have. In Rust the same is `Engine::parse`, `waylingo_reqwest::drive_parse` and
+`AsyncHost::parse`, which return a `ParseResult` document
+(`crates/waylingo/src/result.rs`).
+
+## Results
 
 `TripOutput` (`crates/waylingo-ffi/src/result.rs`) has the full `geojson` plus the
 same facts as typed fields: `status`, `error_code`, `error_message`, `stops` (pick,

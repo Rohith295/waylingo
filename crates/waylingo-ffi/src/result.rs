@@ -325,3 +325,60 @@ mod tests {
         assert_eq!(out.status, TripStatus::Failed);
     }
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]
+pub enum ParseStatus {
+    /// The request was understood; `plan_json` is set.
+    Parsed,
+    /// No plan; see `error_code` and `error_message`.
+    Failed,
+}
+
+/// What `parse` returns: the plan only. Nothing has been looked up on the map, so
+/// places are the names from the request, not coordinates.
+#[derive(Debug, Clone, PartialEq, uniffi::Record)]
+pub struct ParseOutput {
+    /// The whole parse result document, JSON.
+    pub json: String,
+    pub status: ParseStatus,
+    /// Why there is no plan, when `status` is `FAILED`. The same codes as `plan`.
+    pub error_code: Option<ErrorCode>,
+    pub error_message: Option<String>,
+    /// The plan, JSON: the same `plan` a `plan` call puts in its GeoJSON.
+    pub plan_json: Option<String>,
+    pub plan_hash: Option<String>,
+    pub llm_calls: u32,
+}
+
+impl ParseOutput {
+    pub(crate) fn from_json(json: String) -> Self {
+        match waylingo::ParseResult::parse(&json) {
+            Ok(doc) => Self {
+                status: match doc.status {
+                    waylingo::ParseStatus::Parsed => ParseStatus::Parsed,
+                    waylingo::ParseStatus::Failed => ParseStatus::Failed,
+                },
+                error_code: doc.error.as_ref().map(|e| e.code.into()),
+                error_message: doc.error.as_ref().map(|e| e.message.clone()),
+                plan_json: doc
+                    .plan
+                    .as_ref()
+                    .map(|p| serde_json::to_string(p).expect("a plan serializes")),
+                plan_hash: doc.plan_hash,
+                llm_calls: doc.usage.llm_calls,
+                json,
+            },
+            // The engine wrote this document, so it parses; say so rather than hide
+            // a broken result.
+            Err(e) => Self {
+                json,
+                status: ParseStatus::Failed,
+                error_code: Some(ErrorCode::Internal),
+                error_message: Some(e),
+                plan_json: None,
+                plan_hash: None,
+                llm_calls: 0,
+            },
+        }
+    }
+}

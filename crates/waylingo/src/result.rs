@@ -287,3 +287,43 @@ impl TripResult {
         Ok(doc)
     }
 }
+
+/// Version of the [`ParseResult`] document.
+pub const PARSE_SCHEMA_VERSION: &str = "1.0.0";
+
+/// What [`crate::Engine::parse`] returns: the plan the LLM step produced, without
+/// routing it. Plain JSON, not GeoJSON: nothing has been looked up yet, so places
+/// are the names from the request and the only coordinates are the ones the app
+/// passed in (such as the current location).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ParseResult {
+    pub parse_schema: String,
+    /// Version of the [`Plan`] format.
+    pub plan_schema: String,
+    pub request_id: Option<String>,
+    pub status: ParseStatus,
+    pub error: Option<ResultError>,
+    pub plan: Option<Plan>,
+    pub plan_hash: Option<String>,
+    /// `map_calls` is always 0.
+    pub usage: Usage,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ParseStatus {
+    /// The request was understood; `plan` is set.
+    Parsed,
+    /// No plan; see `error`.
+    Failed,
+}
+
+impl ParseResult {
+    /// Read a document produced by [`crate::Engine::parse`].
+    ///
+    /// # Errors
+    /// The text is not a Waylingo parse result.
+    pub fn parse(json: &str) -> Result<Self, String> {
+        serde_json::from_str(json).map_err(|e| e.to_string())
+    }
+}

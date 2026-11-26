@@ -1,6 +1,6 @@
 //! HTTP hosts for the Waylingo engine, built on reqwest.
 //!
-//! * [`drive`] / [`drive_resume`]: blocking, one request at a time. For scripts.
+//! * [`drive`] / [`drive_resume`] / [`drive_parse`]: blocking, one request at a time. For scripts.
 //! * [`AsyncHost`]: async, parallel within a batch, map calls paced across every
 //!   query on the host, with an overall deadline. For apps and servers.
 //!
@@ -24,7 +24,7 @@ use std::time::Duration;
 use waylingo::WaylingoError;
 
 pub use asynchronous::AsyncHost;
-pub use blocking::{drive, drive_resume};
+pub use blocking::{drive, drive_parse, drive_resume};
 
 /// The two secrets a query needs. Leave `llm` empty for a local server that needs
 /// no key.

@@ -19,8 +19,8 @@
 use std::sync::Arc;
 
 use waylingo_ffi::{
-    Choices, ErrorCode, LatLng, LlmBackend, MapProvider, SearchSettings, StopChoice, StopPick,
-    TripInput, TripOutput, TripStatus, UserChoice, Waylingo, WaylingoConfig,
+    Choices, ErrorCode, LatLng, LlmBackend, MapProvider, ParseStatus, SearchSettings, StopChoice,
+    StopPick, TripInput, TripOutput, TripStatus, UserChoice, Waylingo, WaylingoConfig,
 };
 
 const AMSTERDAM: LatLng = LatLng {
@@ -285,6 +285,23 @@ fn wrong_keys_are_auth_errors() {
     wrong_key("tomtom", "anthropic", true);
     wrong_key("here", "anthropic", true);
     wrong_key("tomtom", "anthropic", false);
+}
+
+/// Parse only: the plan, one LLM call, no map call.
+#[test]
+#[ignore = "live: Anthropic"]
+fn parse_only() {
+    let (Some((mp, map_key)), Some((backend, llm_key))) = (map("tomtom"), llm("anthropic")) else {
+        return;
+    };
+    let out = app(mp, map_key, backend, llm_key)
+        .parse_blocking(trip("Drive to Utrecht, coffee halfway"))
+        .expect("parse returns a result");
+    assert_eq!(out.status, ParseStatus::Parsed, "{:?}", out.error_code);
+    let plan: serde_json::Value = serde_json::from_str(out.plan_json.as_deref().unwrap()).unwrap();
+    assert_eq!(plan["destination"]["text"], "Utrecht");
+    assert_eq!(plan["stop_requests"].as_array().unwrap().len(), 1);
+    eprintln!("parse only: {} LLM call(s)", out.llm_calls);
 }
 
 /// A destination with no stops: one LLM call, geocode and route only.
