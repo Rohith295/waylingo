@@ -25,9 +25,10 @@ pub use config::{EngineConfig, Limits, ProviderChoice, SigningKey};
 pub use engine::{Engine, Session, Step, TripRequest, WaylingoError};
 pub use error_code::ErrorCode;
 pub use result::{
-    AnchorEcho, Feature, Geometry, LocationCandidate, LocationProps, PlaceProps, Properties,
-    RESULT_SCHEMA_VERSION, ResultError, RouteProps, SearchEcho, Status, StopProps, TripResult,
-    UnresolvedProps, UnresolvedReason, Usage, UserChoice, WindowEcho,
+    AnchorEcho, Feature, Geometry, LocationCandidate, LocationProps, PARSE_SCHEMA_VERSION,
+    ParseResult, ParseStatus, PlaceProps, Properties, RESULT_SCHEMA_VERSION, ResultError,
+    RouteProps, SearchEcho, Status, StopProps, TripResult, UnresolvedProps, UnresolvedReason,
+    Usage, UserChoice, WindowEcho,
 };
 pub use waylingo_http::{
     AuthPlacement, CredentialSlot, Header, HttpRequest, HttpResponse, TransportError,

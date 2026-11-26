@@ -67,6 +67,16 @@ impl AsyncHost {
         self.run(session, step).await
     }
 
+    /// Run only the LLM step (see [`Engine::parse`]) and return the
+    /// [`waylingo::ParseResult`] JSON. Makes no map call.
+    ///
+    /// # Errors
+    /// As [`AsyncHost::plan`].
+    pub async fn parse(&self, engine: &Engine, request: TripRequest) -> Result<String, DriveError> {
+        let (session, step) = engine.parse(request)?;
+        self.run(session, step).await
+    }
+
     /// Continue a previous result with the end user's choices (see
     /// [`Engine::resume`]).
     ///

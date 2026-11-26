@@ -5,9 +5,10 @@
 //! * `plan(trip)`: the end user's request in, a GeoJSON result out.
 //! * `reroute(previous_geojson, choices)`: after the end user picks another stop or
 //!   place, the new route. The LLM is not called again.
+//! * `parse(trip)`: only the plan the LLM step produced, with no map call.
 //!
-//! Both are async; `plan_blocking` and `reroute_blocking` are for code without an
-//! event loop. Keys are passed to the constructor and never stored in a record, so
+//! All three are async; the `_blocking` variants are for code without an event
+//! loop. Keys are passed to the constructor and never stored in a record, so
 //! they cannot show up in a printed config.
 
 mod choices;
@@ -27,8 +28,8 @@ pub use config::{LlmBackend, MapProvider, SearchSettings, WaylingoConfig};
 pub use error::WaylingoError;
 pub use error_code::{ErrorCode, is_retryable, needs_user};
 pub use result::{
-    Candidate, Location, Place, Stop, TripOutput, TripStatus, UnresolvedReason, UnresolvedStop,
-    UserChoice,
+    Candidate, Location, ParseOutput, ParseStatus, Place, Stop, TripOutput, TripStatus,
+    UnresolvedReason, UnresolvedStop, UserChoice,
 };
 pub use trip::{AvoidKind, ConnectorKind, EvSpec, LatLng, SavedPlace, TripInput};
 
@@ -104,6 +105,17 @@ impl Waylingo {
         Ok(TripOutput::from_geojson(geojson))
     }
 
+    /// Run only the LLM step and return the plan, without any map call: to show
+    /// the end user what was understood before planning, or to test a model. A
+    /// later `plan` call parses the request again.
+    pub async fn parse(&self, trip: TripInput) -> Result<ParseOutput, WaylingoError> {
+        let json = self
+            .host
+            .parse(&self.engine, trip.request(self.defaults))
+            .await?;
+        Ok(ParseOutput::from_json(json))
+    }
+
     /// Continue a previous result after the end user's choices. `previous_geojson`
     /// is a result from this instance (the route line may be removed to save space).
     #[uniffi::method(default(request_id = None))]
@@ -127,6 +139,12 @@ impl Waylingo {
     /// for up to `timeout_ms`: never call it on a UI thread.
     pub fn plan_blocking(&self, trip: TripInput) -> Result<TripOutput, WaylingoError> {
         RUNTIME.block_on(self.plan(trip))
+    }
+
+    /// [`Waylingo::parse`] for code without an event loop. Blocks the calling thread:
+    /// never call it on a UI thread.
+    pub fn parse_blocking(&self, trip: TripInput) -> Result<ParseOutput, WaylingoError> {
+        RUNTIME.block_on(self.parse(trip))
     }
 
     /// [`Waylingo::reroute`] for code without an event loop. Blocks the calling
