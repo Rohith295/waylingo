@@ -321,7 +321,16 @@ impl ProviderAdapter for TomTom {
     }
 
     fn parse_route(&self, resp: &HttpResponse) -> Result<RouteResult, ProviderError> {
-        let r: RouteResp = parse_json(resp)?;
+        // TomTom answers 400 with NO_ROUTE_FOUND when no road connects the points
+        // (for example across an ocean): that is no route, not a bad request.
+        let r: RouteResp = parse_json(resp).map_err(|mut e| {
+            if e.kind == ErrorKind::BadRequest
+                && String::from_utf8_lossy(&resp.body).contains("NO_ROUTE_FOUND")
+            {
+                e.kind = ErrorKind::NoRoute;
+            }
+            e
+        })?;
         let Some(route) = r.routes.into_iter().next() else {
             return Err(ProviderError {
                 kind: ErrorKind::NoRoute,

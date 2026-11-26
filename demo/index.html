@@ -3,220 +3,338 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
 <title>Waylingo demo</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Overpass:wght@400;500;600;700;800&family=Overpass+Mono:wght@400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link rel="stylesheet" href="/static/leaflet/leaflet.css">
+<script src="/static/leaflet/leaflet.js"></script>
 <style>
+  @font-face { font-family: "Overpass"; font-weight: 400; font-display: swap; src: url(/static/fonts/overpass-400.woff2) format("woff2"); }
+  @font-face { font-family: "Overpass"; font-weight: 500; font-display: swap; src: url(/static/fonts/overpass-500.woff2) format("woff2"); }
+  @font-face { font-family: "Overpass"; font-weight: 600; font-display: swap; src: url(/static/fonts/overpass-600.woff2) format("woff2"); }
+  @font-face { font-family: "Overpass"; font-weight: 700; font-display: swap; src: url(/static/fonts/overpass-700.woff2) format("woff2"); }
+  @font-face { font-family: "Overpass"; font-weight: 800; font-display: swap; src: url(/static/fonts/overpass-800.woff2) format("woff2"); }
+  @font-face { font-family: "Overpass Mono"; font-weight: 400; font-display: swap; src: url(/static/fonts/overpass-mono-400.woff2) format("woff2"); }
+  @font-face { font-family: "Overpass Mono"; font-weight: 600; font-display: swap; src: url(/static/fonts/overpass-mono-600.woff2) format("woff2"); }
+
+  /* Type scale: 12 / 13 / 15 / 19 / 21 */
   :root {
-    --sign: #0a5c3a;          /* direction-sign green */
-    --sign-deep: #074529;
-    --ink: #1c2024;
-    --muted: #66707a;
-    --faint: #98a1a8;
-    --surface: #ffffff;
-    --mist: #f4f6f5;
-    --line: #e3e8e5;
-    --route: #1d5fd1;
-    --amber: #f5b000;
-    --amber-ink: #4a3500;
-    --danger: #b3261e;
-    --ok: #1f7a4a;
-    --term: #16191c;
-    --radius: 14px;
-    --sans: "Overpass", system-ui, sans-serif;
-    --mono: "Overpass Mono", ui-monospace, monospace;
+    --sign: #0a5c3a; --sign-hover: #0c6a43; --sign-edge: #074529; --sign-ink: #ffffff; --sign-label: #c2e8d2;
+    --ink: #1c2024; --muted: #5f6a73; --faint: #98a1a8;
+    --page: #e9ecea; --surface: #ffffff; --mist: #f3f5f4; --line: #e1e6e3; --border: #848e96;
+    --chosen: #eef6f1; --accent-ink: #0a5c3a; --selected: #0a5c3a; --focus: #0a5c3a;
+    --route: #1d5fd1; --route-casing: #ffffff;
+    --amber: #f5b000; --amber-ink: #4a3500;
+    --danger: #b3261e; --danger-bg: #fbefee; --ok: #1f7a4a;
+    --term: #16191c; --term-ink: #e3e9e6;
+    --shadow: 0 12px 40px rgba(16, 28, 22, .18), 0 1px 3px rgba(16, 28, 22, .08);
+    --sans: "Overpass", system-ui, sans-serif; --mono: "Overpass Mono", ui-monospace, monospace;
+    color-scheme: light;
   }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --sign: #0d6a44; --sign-hover: #10794e; --sign-edge: #06341f;
+      --ink: #e6ece9; --muted: #9ba8a3; --faint: #6c7a75;
+      --page: #0e1315; --surface: #161d20; --mist: #1e272b; --line: #2a363b; --border: #66767d;
+      --chosen: #15301f; --accent-ink: #6fd39b; --selected: #6fd39b; --focus: #f5b000;
+      --route: #6c9cf5; --route-casing: #0e1315;
+      --danger: #f08a80; --danger-bg: #3a1e1c; --ok: #5cc48a;
+      --term: #0b0f11; --term-ink: #dfe6e2;
+      --shadow: 0 12px 40px rgba(0, 0, 0, .5), 0 1px 3px rgba(0, 0, 0, .4);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --sign: #0d6a44; --sign-hover: #10794e; --sign-edge: #06341f;
+    --ink: #e6ece9; --muted: #9ba8a3; --faint: #6c7a75;
+    --page: #0e1315; --surface: #161d20; --mist: #1e272b; --line: #2a363b; --border: #66767d;
+    --chosen: #15301f; --accent-ink: #6fd39b; --selected: #6fd39b; --focus: #f5b000;
+    --route: #6c9cf5; --route-casing: #0e1315;
+    --danger: #f08a80; --danger-bg: #3a1e1c; --ok: #5cc48a;
+    --term: #0b0f11; --term-ink: #dfe6e2;
+    --shadow: 0 12px 40px rgba(0, 0, 0, .5), 0 1px 3px rgba(0, 0, 0, .4);
+    color-scheme: dark;
+  }
+
   * { box-sizing: border-box; }
   html, body { height: 100%; margin: 0; }
-  body { font: 400 15px/1.5 var(--sans); color: var(--ink); background: #e9ecea; overflow: hidden; }
+  body { font: 400 15px/1.5 var(--sans); color: var(--ink); background: var(--page); overflow: hidden; }
   button, input, textarea { font: inherit; color: inherit; }
   button { cursor: pointer; }
+  button:disabled { opacity: .55; cursor: progress; }
   a { color: var(--route); text-underline-offset: 2px; }
-  :focus-visible { outline: 3px solid var(--amber); outline-offset: 2px; border-radius: 6px; }
+  :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+  [hidden] { display: none !important; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .num { font-variant-numeric: tabular-nums; }
 
+  /* ---------- Map ---------- */
   #map { position: fixed; inset: 0; }
-  .leaflet-container { font-family: var(--sans); background: #e9ecea; }
-  .basemap { filter: grayscale(.9) contrast(.88) brightness(1.06); }
-  .leaflet-control-zoom { border: 0 !important; box-shadow: 0 2px 10px rgba(20,30,25,.15) !important; }
-  .leaflet-control-zoom a { color: var(--ink) !important; }
+  .leaflet-container { font-family: var(--sans); background: var(--page); }
+  .basemap-osm { filter: grayscale(.9) contrast(.88) brightness(1.06); }
+  :root[data-dark="1"] .basemap-osm { filter: invert(1) hue-rotate(180deg) grayscale(.85) brightness(.82) contrast(.9); }
+  .leaflet-control-zoom { border: 0 !important; box-shadow: var(--shadow) !important; }
+  .leaflet-control-zoom a { background: var(--surface) !important; color: var(--ink) !important; border-color: var(--line) !important; }
+  .leaflet-control-attribution { background: color-mix(in srgb, var(--surface) 85%, transparent) !important; color: var(--muted) !important; }
+  .leaflet-control-attribution a { color: var(--muted) !important; }
+  .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
+  .leaflet-popup-content-wrapper { border-radius: 12px; }
+  .leaflet-popup-content { margin: 12px 14px; font-size: 13px; line-height: 1.4; }
+  .leaflet-container a.leaflet-popup-close-button { color: var(--muted); }
+  .pop-name { font-weight: 700; font-size: 15px; }
+  .pop-meta { color: var(--muted); font-size: 12px; }
+  .pop-btn { margin-top: 8px; border: 0; border-radius: 8px; background: var(--sign); color: #fff; font-weight: 700; font-size: 13px; padding: 7px 12px 6px; }
+  .route-dim { opacity: .4; transition: opacity .2s; }
 
-  /* Floating panel */
-  .panel { position: fixed; z-index: 1000; top: 16px; left: 16px; bottom: 16px; width: 404px;
-           background: var(--surface); border-radius: 18px; box-shadow: 0 12px 40px rgba(16, 28, 22, .18), 0 1px 3px rgba(16,28,22,.08);
-           display: flex; flex-direction: column; overflow: hidden; }
-  .panel-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px 12px; }
-  .wordmark { display: flex; align-items: center; gap: 9px; font-weight: 800; font-size: 18px; letter-spacing: -.015em; }
-  .wordmark svg { display: block; }
-  .conn { display: inline-flex; align-items: center; gap: 7px; border: 0; background: var(--mist); border-radius: 999px;
-          padding: 6px 12px 5px; font-size: 13px; font-weight: 500; }
-  .conn i { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); }
-  .conn.ready i { background: var(--ok); box-shadow: 0 0 0 3px rgba(31,122,74,.18); }
-  .panel-body { flex: 1; overflow-y: auto; padding: 4px 18px 22px; scrollbar-width: thin; }
+  .pin { display: grid; place-items: center; width: 28px; height: 28px; }
+  .pin i { display: block; box-shadow: 0 2px 6px rgba(0,0,0,.3); }
+  .pin-start i { width: 20px; height: 20px; border-radius: 50%; background: var(--surface); border: 5px solid var(--route); }
+  .pin-end i { width: 22px; height: 22px; border-radius: 50%; background: var(--route); border: 4px solid var(--surface); }
+  .pin-stop i { width: 18px; height: 18px; border-radius: 4px; transform: rotate(45deg); background: var(--amber); border: 2px solid var(--amber-ink); }
+  .pin-alt i { position: relative; width: 18px; height: 18px; border-radius: 4px; transform: rotate(45deg); background: var(--surface); border: 2px solid var(--amber); transition: transform .12s; }
+  .pin-alt b { position: absolute; inset: 0; display: grid; place-items: center; transform: rotate(-45deg); font: 700 11px/1 var(--sans); color: var(--ink); padding-top: 1px; }
+  .pin-alt.hot i { transform: rotate(45deg) scale(1.45); background: var(--amber); }
+  .route-line { animation: draw 1.1s ease-out forwards; }
+  @keyframes draw { from { stroke-dashoffset: var(--len); } to { stroke-dashoffset: 0; } }
 
-  /* Setup */
-  .setup h2 { font-size: 22px; line-height: 1.2; font-weight: 800; margin: 8px 0 6px; letter-spacing: -.015em; }
-  .setup > p { margin: 0 0 18px; color: var(--muted); font-size: 14px; }
+  /* ---------- Panel ---------- */
+  .panel { position: fixed; z-index: 1000; top: 16px; left: 16px; bottom: 16px; width: 412px; background: var(--surface);
+           border-radius: 18px; box-shadow: var(--shadow); display: flex; flex-direction: column; overflow: hidden; }
+  .head { display: flex; align-items: center; gap: 8px; padding: 15px 16px 11px 18px; }
+  .head h1 { display: flex; align-items: center; gap: 9px; margin: 0 auto 0 0; font-weight: 800; font-size: 19px; letter-spacing: -.015em; }
+  .chip { display: inline-flex; align-items: center; gap: 7px; min-height: 34px; border: 0; background: var(--mist); border-radius: 999px; padding: 0 10px 0 12px; font-size: 13px; font-weight: 600; max-width: 230px; }
+  .chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-top: 2px; }
+  .chip i { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--faint); }
+  .chip.ready i { background: var(--ok); }
+  .chip svg { flex: none; color: var(--muted); }
+  .iconbtn { flex: none; width: 34px; height: 34px; border: 0; border-radius: 50%; background: var(--mist); display: grid; place-items: center; color: var(--ink); }
+  .iconbtn:hover, .chip:hover { background: var(--line); }
+
+  /* The request: a direction sign, pinned above the scrolling results */
+  .top { padding: 0 18px 12px; }
+  .top.scrolled { box-shadow: 0 1px 0 var(--line); }
+  .sign { background: var(--sign); border-radius: 14px; padding: 5px; }
+  .sign-face { display: flex; gap: 12px; border: 2px solid rgba(255,255,255,.92); border-radius: 10px; padding: 12px 14px 10px 12px; }
+  .sign svg { flex: none; width: 30px; height: 30px; margin-top: 4px; }
+  .sign-text { flex: 1; min-width: 0; }
+  .sign label { display: block; color: rgba(255,255,255,.85); font-size: 12px; font-weight: 500; margin-bottom: 2px; }
+  .sign textarea { display: block; width: 100%; border: 0; background: transparent; resize: none; overflow: hidden; padding: 0;
+                   color: var(--sign-ink); font: 700 21px/1.22 var(--sans); letter-spacing: -.005em; min-height: 52px; }
+  .sign textarea::placeholder { color: rgba(255,255,255,.72); }
+  .sign textarea:focus-visible { outline: none; }
+  .sign:focus-within { box-shadow: 0 0 0 3px var(--amber); }
+  .actions { display: flex; gap: 8px; margin: 10px 0 0; }
+  .actions .go { flex: 1; }
+  .hint { font-size: 12px; color: var(--muted); margin: 6px 0 0; }
+  .start { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; margin-top: 8px; }
+  .start span { flex: 1; padding-top: 2px; }
+  .ring { flex: none; width: 13px; height: 13px; border-radius: 50%; border: 3px solid var(--route); }
+  .locbtn { flex: none; display: inline-flex; align-items: center; gap: 6px; min-height: 30px; border: 0; background: var(--mist); border-radius: 999px; padding: 0 12px; font-size: 13px; font-weight: 600; }
+  .locbtn:hover { background: var(--line); }
+  /* Collapsed after a result: one line, expands on focus */
+  .top.compact .sign-face { padding: 8px 12px 6px; gap: 10px; align-items: center; }
+  .top.compact .sign svg { width: 20px; height: 20px; margin: 0; }
+  .top.compact .sign label, .top.compact .start, .top.compact .hint { display: none; }
+  .top.compact .sign textarea { font-size: 15px; min-height: 0; height: 1.25em !important; white-space: nowrap; text-overflow: ellipsis; }
+  .top.compact .actions { margin-top: 8px; }
+
+  .body { flex: 1; overflow-y: auto; padding: 4px 18px 24px; scrollbar-width: thin; }
+
+  /* ---------- Buttons ---------- */
+  .go { border: 0; border-radius: 12px; background: var(--sign); color: #fff; font-weight: 700; font-size: 15px; min-height: 44px; padding: 0 18px; box-shadow: 0 1px 0 var(--sign-edge); }
+  .go:hover { background: var(--sign-hover); }
+  .alt { border: 1.5px solid var(--border); border-radius: 12px; background: var(--surface); font-weight: 600; font-size: 15px; min-height: 44px; padding: 0 16px; }
+  .alt:hover { border-color: var(--ink); }
+  .small-btn { display: inline-flex; align-items: center; gap: 6px; border: 1.5px solid var(--border); background: var(--surface); border-radius: 8px; min-height: 30px; padding: 0 10px; font-size: 13px; font-weight: 700; }
+  .small-btn:hover { border-color: var(--ink); }
+  .spin { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--line); border-top-color: var(--sign); animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ---------- Setup ---------- */
+  .setup h2 { font-size: 21px; line-height: 1.2; font-weight: 800; margin: 4px 0 6px; letter-spacing: -.015em; }
+  .setup > p { margin: 0 0 18px; color: var(--muted); font-size: 15px; }
   .step { position: relative; padding-left: 38px; margin-bottom: 22px; }
-  .step-n { position: absolute; left: 0; top: 0; width: 26px; height: 26px; border-radius: 50%; background: var(--ink); color: #fff;
-            font-weight: 700; font-size: 13px; display: grid; place-items: center; padding-top: 2px; }
+  .step-n { position: absolute; left: 0; top: 0; width: 26px; height: 26px; border-radius: 4px; background: var(--ink); color: var(--surface); font-weight: 700; font-size: 13px; display: grid; place-items: center; padding-top: 2px; }
   .step h3 { margin: 1px 0 10px; font-size: 15px; font-weight: 700; }
   .step h3 span { font-weight: 400; color: var(--muted); }
   .tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
-  .tile { position: relative; display: block; border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px 9px; cursor: pointer; background: var(--surface); }
+  .tile { position: relative; display: block; border: 1.5px solid var(--border); border-radius: 12px; padding: 10px 30px 9px 12px; cursor: pointer; background: var(--surface); }
   .tile input { position: absolute; opacity: 0; pointer-events: none; }
-  .tile b { display: block; font-weight: 700; font-size: 14.5px; }
-  .tile small { display: block; color: var(--muted); font-size: 12.5px; line-height: 1.35; margin-top: 1px; }
-  .tile:has(input:checked) { border-color: var(--sign); background: #eef6f1; box-shadow: inset 0 0 0 1px var(--sign); }
-  .tile:has(input:focus-visible) { outline: 3px solid var(--amber); outline-offset: 2px; }
+  .tile b { display: block; font-weight: 700; font-size: 15px; }
+  .tile small { display: block; color: var(--muted); font-size: 12px; line-height: 1.35; margin-top: 1px; }
+  .tile::after { content: ""; position: absolute; top: 9px; right: 9px; width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid var(--border); }
+  .tile:has(input:checked) { border-color: var(--selected); background: var(--chosen); box-shadow: inset 0 0 0 1px var(--selected); }
+  .tile:has(input:checked)::after { border: 0; background: var(--sign) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4.5 8.2 7 10.6l4.6-5' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/16px no-repeat; }
+  .tile:has(input:focus-visible) { outline: 3px solid var(--focus); outline-offset: 2px; }
   .lbl { display: block; font-size: 13px; font-weight: 600; margin: 10px 0 5px; }
-  .input { display: flex; align-items: center; border: 1.5px solid var(--line); border-radius: 10px; background: var(--surface); }
-  .input:focus-within { border-color: var(--sign); }
-  .input input { flex: 1; min-width: 0; border: 0; background: transparent; padding: 10px 12px; font-family: var(--mono); font-size: 13.5px; outline: none; }
-  .input button { border: 0; background: none; color: var(--muted); font-size: 12.5px; font-weight: 600; padding: 0 12px; height: 38px; }
-  .help { font-size: 12.5px; color: var(--muted); margin-top: 6px; }
-  .term { background: var(--term); color: #e6ece8; border-radius: 10px; padding: 10px 12px; font: 12.5px/1.55 var(--mono);
-          display: flex; gap: 10px; align-items: flex-start; }
+  .field { display: flex; align-items: center; border: 1.5px solid var(--border); border-radius: 10px; background: var(--surface); }
+  .field:focus-within { border-color: var(--selected); }
+  .field.bad { border-color: var(--danger); }
+  .field input { flex: 1; min-width: 0; border: 0; background: transparent; padding: 10px 12px; font-family: var(--mono); font-size: 13px; outline: none; }
+  .field button { border: 0; background: none; color: var(--muted); font-size: 13px; font-weight: 600; padding: 0 12px; min-height: 40px; }
+  .ferr { color: var(--danger); font-size: 13px; margin: 6px 0 0; }
+  .help { font-size: 12px; color: var(--muted); margin-top: 6px; }
+  .help code { font-family: var(--mono); }
+  .term { background: var(--term); color: var(--term-ink); border-radius: 10px; padding: 10px 12px; font: 12px/1.55 var(--mono); display: flex; gap: 10px; align-items: flex-start; }
   .term code { flex: 1; word-break: break-word; }
-  .term code::before { content: "$ "; color: #7f8b85; }
-  .term button { border: 1px solid #3a423e; background: transparent; color: #e6ece8; border-radius: 7px; font-size: 12px; padding: 3px 9px; }
-  .probe { display: flex; align-items: center; gap: 10px; margin-top: 10px; font-size: 13px; }
+  .term code::before { content: "$ "; color: #8a968f; }
+  .term button { border: 1px solid #4a544f; background: transparent; color: var(--term-ink); border-radius: 7px; font-size: 12px; min-height: 28px; padding: 0 10px; }
+  .probe { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 13px; }
   .probe .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); }
   .probe.ok .dot { background: var(--ok); } .probe.no .dot { background: var(--danger); }
-  .ghost { border: 1.5px solid var(--line); background: var(--surface); border-radius: 10px; padding: 7px 12px 6px; font-size: 13px; font-weight: 600; }
-  .ghost:hover { border-color: var(--faint); }
-  .switch { display: flex; align-items: center; gap: 10px; font-size: 13.5px; margin: 0 0 14px 38px; cursor: pointer; }
-  .switch input { appearance: none; width: 34px; height: 20px; border-radius: 999px; background: var(--line); position: relative; margin: 0; cursor: pointer; transition: background .15s; }
+  .switch { display: flex; align-items: center; gap: 10px; font-size: 13px; margin: 0 0 8px 38px; cursor: pointer; }
+  .switch input { appearance: none; width: 34px; height: 20px; border-radius: 999px; background: var(--border); position: relative; margin: 0; cursor: pointer; transition: background .15s; }
   .switch input::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.25); transition: transform .15s; }
   .switch input:checked { background: var(--sign); }
   .switch input:checked::after { transform: translateX(14px); }
-  .setup-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-left: 38px; }
-  .linkbtn { border: 0; background: none; padding: 0; color: var(--muted); font-size: 13px; text-decoration: underline; text-underline-offset: 2px; }
-  .err { color: var(--danger); font-size: 13px; margin: 0 0 10px 38px; min-height: 1em; }
-  .privacy { display: flex; gap: 10px; margin: 18px 0 0; padding: 12px 14px; background: var(--mist); border-radius: 12px; font-size: 12.5px; color: var(--muted); }
-  .privacy svg { flex: none; margin-top: 1px; }
+  .setup details { margin: 0 0 8px 38px; border: 0; padding: 0; }
+  .setup details summary { font-size: 13px; font-weight: 600; color: var(--muted); }
+  .setup details p { font-size: 13px; color: var(--muted); margin: 6px 0 0; }
+  .setup-foot { position: sticky; bottom: -24px; margin: 8px -18px -24px; padding: 12px 18px 18px; background: var(--surface); border-top: 1px solid var(--line);
+                display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .linkbtn { border: 0; background: none; padding: 0; min-height: 28px; color: var(--muted); font-size: 13px; text-decoration: underline; text-underline-offset: 2px; }
 
-  /* Buttons */
-  .go { border: 0; border-radius: 12px; background: var(--sign); color: #fff; font-weight: 700; font-size: 15px; padding: 12px 18px 11px; box-shadow: 0 1px 0 var(--sign-deep); }
-  .go:hover { background: #0c6a43; }
-  .go:disabled, .alt:disabled { opacity: .55; cursor: progress; }
-  .alt { border: 1.5px solid var(--line); border-radius: 12px; background: var(--surface); font-weight: 600; font-size: 15px; padding: 11px 16px 10px; }
-  .alt:hover { border-color: var(--faint); }
+  /* ---------- Results ---------- */
+  .status { margin: 14px 0 12px; }
+  .status h2 { margin: 0; font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+  .status h2:focus { outline: none; }
+  .tele { font: 12px/1.5 var(--mono); color: var(--muted); }
+  .status .row { display: flex; align-items: center; gap: 8px; }
+  .status .row > div { flex: 1; min-width: 0; }
+  .dimmed { opacity: .45; transition: opacity .2s; pointer-events: none; }
 
-  /* The direction sign: the one bold element */
-  .sign { position: relative; background: var(--sign); border-radius: 14px; padding: 5px; margin-top: 4px; }
-  .sign-face { display: flex; gap: 12px; border: 2px solid rgba(255,255,255,.92); border-radius: 10px; padding: 12px 14px 10px 12px; }
-  .sign svg { flex: none; margin-top: 4px; }
-  .sign-text { flex: 1; min-width: 0; }
-  .sign label { display: block; color: rgba(255,255,255,.78); font-size: 12.5px; font-weight: 500; margin-bottom: 1px; }
-  .sign textarea { display: block; width: 100%; border: 0; background: transparent; resize: none; overflow: hidden; padding: 0;
-                   color: #fff; font: 700 21px/1.22 var(--sans); letter-spacing: -.005em; min-height: 52px; }
-  .sign textarea::placeholder { color: rgba(255,255,255,.5); }
-  .sign textarea:focus-visible { outline: none; }
-  .sign:focus-within { box-shadow: 0 0 0 3px var(--amber); }
-  .trip-actions { display: flex; gap: 8px; margin: 12px 0 8px; }
-  .trip-actions .go { flex: 1; }
-  .start { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 13px; }
+  .plate { display: grid; grid-template-columns: repeat(3, 1fr); background: var(--sign); color: #fff; border-radius: 12px; padding: 4px; margin: 0 0 18px; }
+  .plate-face { display: contents; }
+  .plate > div { text-align: center; padding: 8px 4px 6px; border: 1.5px solid rgba(255,255,255,.9); }
+  .plate > div:first-child { border-radius: 8px 0 0 8px; }
+  .plate > div:last-child { border-radius: 0 8px 8px 0; }
+  .plate > div + div { border-left: 0; }
+  .plate strong { display: block; font-size: 19px; font-weight: 800; letter-spacing: -.01em; font-variant-numeric: tabular-nums; }
+  .plate strong small { font-size: 13px; font-weight: 500; margin-left: 2px; }
+  .plate span { font-size: 12px; color: var(--sign-label); }
 
-  .try { margin: 18px 0 0; }
-  .try h4 { margin: 0 0 6px; font-size: 13px; font-weight: 600; color: var(--muted); }
-  .try button { display: block; width: 100%; text-align: left; border: 0; background: none; padding: 8px 10px 7px; border-radius: 9px; font-size: 14px; color: var(--ink); }
-  .try button:hover { background: var(--mist); }
-
-  /* Results */
-  .state { margin: 20px 0 10px; font-size: 14px; color: var(--muted); display: flex; align-items: center; gap: 8px; }
-  .state b { color: var(--ink); font-weight: 700; }
-  .state.bad b { color: var(--danger); }
-  .spinner { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--line); border-top-color: var(--sign); animation: spin .8s linear infinite; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .summary { display: grid; grid-template-columns: repeat(3, 1fr); background: var(--mist); border-radius: 12px; padding: 10px 4px 8px; margin: 0 0 16px; }
-  .summary div { text-align: center; }
-  .summary div + div { border-left: 1px solid var(--line); }
-  .summary strong { display: block; font-size: 19px; font-weight: 800; letter-spacing: -.01em; }
-  .summary span { font-size: 12px; color: var(--muted); }
-  .problem { background: #fbefee; border-radius: 12px; padding: 10px 12px; font-size: 14px; margin: 0 0 14px; }
-  .problem b { color: var(--danger); }
-  .problem p { margin: 4px 0 0; color: var(--ink); }
+  .problem { border-radius: 12px; padding: 10px 12px; font-size: 13px; margin: 0 0 14px; background: var(--mist); }
+  .problem.serious { background: var(--danger-bg); }
+  .problem .row { display: flex; align-items: baseline; gap: 8px; }
+  .problem b { flex: 1; font-size: 15px; }
+  .problem.serious b { color: var(--danger); }
+  .problem code { font: 12px var(--mono); color: var(--muted); }
+  .problem p { margin: 4px 0 0; }
+  .problem .small-btn { margin-top: 8px; }
 
   .road { list-style: none; margin: 0; padding: 0; }
-  .road > li { position: relative; padding: 0 0 16px 32px; }
+  .road > li { position: relative; padding: 0 0 18px 32px; }
   .road > li::before { content: ""; position: absolute; left: 10px; top: 14px; bottom: -6px; width: 4px; background: var(--route); border-radius: 2px; }
   .road > li:last-child::before { display: none; }
-  .road .mk { position: absolute; left: 3px; top: 2px; width: 18px; height: 18px; border-radius: 50%; background: #fff; border: 4px solid var(--route); }
-  .road .end .mk { background: var(--route); border-color: #fff; box-shadow: 0 0 0 2px var(--route); }
-  .road .stop .mk { left: 4px; top: 3px; width: 16px; height: 16px; border-radius: 4px; transform: rotate(45deg); background: var(--amber); border: 2px solid var(--amber-ink); }
-  .road .missing .mk { border-color: var(--danger); }
-  .road .name { font-weight: 700; font-size: 15px; line-height: 1.3; }
-  .road .meta { font-size: 13px; color: var(--muted); }
-  .coord { font: 12.5px var(--mono); border: 0; background: none; padding: 0; color: var(--route); cursor: pointer; }
-  .coord:hover { text-decoration: underline; text-underline-offset: 2px; }
-  .alts { list-style: none; margin: 6px 0 0; padding: 6px 10px; background: var(--mist); border-radius: 9px; font-size: 13px; }
-  .alts li { display: flex; justify-content: space-between; gap: 8px; padding: 2px 0; }
-  .fine { font-size: 12.5px; color: var(--muted); margin: 6px 0 0; }
-  details { border-top: 1px solid var(--line); margin-top: 14px; padding-top: 10px; }
-  summary { cursor: pointer; font-weight: 600; font-size: 14px; }
-  pre { margin: 10px 0 0; font: 12px/1.5 var(--mono); background: var(--term); color: #dfe6e2; border-radius: 10px; padding: 12px; max-height: 340px; overflow: auto; white-space: pre-wrap; word-break: break-word; }
-  .json-note { font-size: 13px; color: var(--muted); margin: 0 0 8px; }
+  .mk { position: absolute; left: 3px; top: 2px; width: 18px; height: 18px; border-radius: 50%; background: var(--surface); border: 4px solid var(--route); }
+  .end .mk { background: var(--route); border-color: var(--surface); box-shadow: 0 0 0 2px var(--route); }
+  .stop .mk { left: 4px; top: 3px; width: 16px; height: 16px; border-radius: 4px; transform: rotate(45deg); background: var(--amber); border: 2px solid var(--amber-ink); }
+  .missing .mk { left: 4px; top: 3px; width: 16px; height: 16px; border-radius: 4px; transform: rotate(45deg); background: var(--surface); border: 2px dashed var(--border); }
+  .row1 { display: flex; align-items: center; gap: 8px; min-height: 30px; }
+  .name { font-weight: 700; font-size: 15px; line-height: 1.3; flex: 1; min-width: 0; padding-top: 2px; }
+  .missing .name { color: var(--muted); }
+  .meta { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .tag { flex: none; font-size: 12px; font-weight: 700; color: var(--accent-ink); background: var(--chosen); border-radius: 4px; padding: 1px 6px 0; }
+  .coord { font: 12px var(--mono); border: 0; background: none; padding: 2px 0; color: var(--muted); text-decoration: underline dotted; text-underline-offset: 3px; font-variant-numeric: tabular-nums; }
+  .coord:hover { color: var(--ink); }
+  .options { list-style: none; margin: 8px 0 0; padding: 4px; background: var(--mist); border-radius: 11px; }
+  .opt { display: flex; align-items: center; gap: 10px; padding: 8px 8px 7px; border-radius: 8px; }
+  .opt:hover, .opt.hot { background: var(--surface); }
+  .opt .n { flex: none; width: 20px; height: 20px; display: grid; place-items: center; font: 700 12px var(--sans); border: 2px solid var(--amber); border-radius: 4px; padding-top: 1px; }
+  .opt > div { flex: 1; min-width: 0; }
+  .opt strong { display: block; font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .opt small { display: block; color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .skip-row { display: flex; justify-content: flex-end; padding: 4px 8px 2px; }
+  .skip-row .linkbtn { color: var(--muted); }
+  .wrong { margin-top: 6px; }
+  .wrong .options { margin-top: 6px; }
+  .fine { font-size: 12px; color: var(--muted); margin: 6px 0 0; }
+  .results details { border-top: 1px solid var(--line); margin-top: 14px; padding-top: 10px; }
+  .results summary { cursor: pointer; font-weight: 600; font-size: 15px; min-height: 28px; }
+  pre { margin: 10px 0 0; font: 12px/1.5 var(--mono); background: var(--term); color: var(--term-ink); border-radius: 10px; padding: 12px; max-height: 340px; overflow: auto; white-space: pre-wrap; word-break: break-word; }
+  .note { font-size: 13px; color: var(--muted); margin: 0 0 8px; }
 
-  /* Map marks */
-  .pin-start { width: 20px; height: 20px; border-radius: 50%; background: #fff; border: 5px solid var(--route); box-shadow: 0 2px 6px rgba(0,0,0,.25); }
-  .pin-end { width: 22px; height: 22px; border-radius: 50%; background: var(--route); border: 4px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,.3); }
-  .pin-stop { width: 18px; height: 18px; border-radius: 4px; transform: rotate(45deg); background: var(--amber); border: 2px solid var(--amber-ink); box-shadow: 0 2px 6px rgba(0,0,0,.25); }
-  .pin-alt { width: 10px; height: 10px; border-radius: 3px; transform: rotate(45deg); background: #fff; border: 2px solid var(--amber-ink); opacity: .85; }
-  .route-line { animation: draw 1.1s ease-out forwards; }
-  @keyframes draw { from { stroke-dashoffset: var(--len); } to { stroke-dashoffset: 0; } }
-  .leaflet-popup-content-wrapper { border-radius: 12px; }
-  .leaflet-popup-content { margin: 10px 14px; font-size: 13.5px; line-height: 1.4; }
+  .try { margin: 10px 0 0; }
+  .try h2 { margin: 0 0 6px; font-size: 13px; font-weight: 600; color: var(--muted); }
+  .try button { display: block; width: 100%; text-align: left; border: 0; background: none; min-height: 40px; padding: 8px 10px 6px; border-radius: 9px; font-size: 15px; }
+  .try button small { color: var(--muted); font-size: 13px; }
+  .try button:hover { background: var(--mist); }
 
+  /* Phone: the map keeps the top of the screen; the panel scrolls below it, so reroutes stay visible. */
   @media (max-width: 760px) {
-    body { overflow: auto; }
-    #map { position: relative; height: 46vh; }
-    .panel { position: relative; inset: auto; width: auto; margin: -24px 0 0; border-radius: 18px 18px 0 0; box-shadow: 0 -6px 24px rgba(16,28,22,.12); }
-    .panel-body { overflow: visible; }
+    #map { inset: 0 0 auto 0; height: 38vh; }
+    .panel { top: calc(38vh - 18px); left: 0; right: 0; bottom: 0; width: auto; border-radius: 18px 18px 0 0; }
+    .change, .linkbtn, .small-btn { min-height: 44px; }
+    .coord { display: inline-flex; align-items: center; min-height: 36px; }
   }
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation: none !important; transition: none !important; }
+    .spin { display: none; }
   }
 </style>
 </head>
 <body>
-<div id="map" role="region" aria-label="Map"></div>
+<div id="map" role="region" aria-label="Map. Click to choose a start point."></div>
 
-<aside class="panel">
-  <header class="panel-head">
-    <div class="wordmark">
+<main class="panel">
+  <header class="head">
+    <h1>
       <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true">
         <rect width="26" height="26" rx="7" fill="#0a5c3a"/>
         <path d="M7 19c3-1 3-5 6-6s4-4 6-6" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/>
         <circle cx="7" cy="19" r="2.2" fill="#f5b000"/><circle cx="19" cy="7" r="2.2" fill="#fff"/>
       </svg>
       Waylingo
-    </div>
-    <button class="conn" id="connBtn" type="button" aria-label="Change keys"><i></i><span id="connLabel">Not connected</span></button>
+    </h1>
+    <button class="chip" id="connBtn" type="button"><i></i><span id="connLabel">Not connected</span>
+      <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5 6 7.5 9 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <button class="iconbtn" id="themeBtn" type="button" aria-label="Switch theme"><svg id="themeIcon" width="17" height="17" viewBox="0 0 24 24" aria-hidden="true"></svg></button>
   </header>
 
-  <div class="panel-body">
-    <!-- Setup -->
-    <section class="setup" id="setupView" hidden>
+  <form class="top" id="tripForm" autocomplete="off" hidden>
+    <div class="sign"><div class="sign-face">
+      <svg viewBox="0 0 30 30" aria-hidden="true"><path d="M15 3 5 14h6v13h8V14h6L15 3Z" fill="#fff"/></svg>
+      <div class="sign-text">
+        <label for="q">Where to, and what on the way?</label>
+        <textarea id="q" rows="2" placeholder="Drive to Utrecht, coffee halfway"></textarea>
+      </div>
+    </div></div>
+    <div class="actions">
+      <button class="go" id="planBtn" type="submit">Plan route</button>
+      <button class="alt" id="parseBtn" type="button" aria-describedby="parseHint">Parse only</button>
+    </div>
+    <p class="hint" id="parseHint">Parse only runs just the language model and shows its plan. No map calls.</p>
+    <div class="start">
+      <i class="ring" aria-hidden="true"></i>
+      <span id="startText">From Amsterdam. Click the map to start somewhere else.</span>
+      <button class="locbtn" type="button" id="locBtn">
+        <svg width="13" height="13" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.5" fill="currentColor"/><circle cx="12" cy="12" r="7.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 1.5v3M12 19.5v3M1.5 12h3M19.5 12h3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        My location
+      </button>
+    </div>
+  </form>
+
+  <div class="body" id="body">
+    <form class="setup" id="setupView" hidden novalidate>
       <h2>Connect your keys</h2>
-      <p>Use your own map key and pick a language model. Then type a trip in plain words.</p>
+      <p>Bring your own map key and choose a language model. Then type a trip in plain words.</p>
 
       <div class="step">
-        <div class="step-n">1</div>
+        <div class="step-n" aria-hidden="true">1</div>
         <h3>Map provider <span>(required)</span></h3>
         <div class="tiles" role="radiogroup" aria-label="Map provider">
           <label class="tile"><input type="radio" name="provider" value="tomtom" checked><b>TomTom</b><small>Routing and places</small></label>
           <label class="tile"><input type="radio" name="provider" value="here"><b>HERE</b><small>Routing and places</small></label>
         </div>
         <label class="lbl" for="mapKey" id="mapKeyLabel">TomTom API key</label>
-        <div class="input"><input id="mapKey" type="password" spellcheck="false" autocomplete="off" placeholder="Paste your key"><button type="button" data-reveal="mapKey">Show</button></div>
-        <div class="help" id="mapHelp">No key yet? Create one free at <a href="https://developer.tomtom.com/" target="_blank" rel="noopener">developer.tomtom.com</a>.</div>
+        <div class="field" id="mapKeyField"><input id="mapKey" type="password" spellcheck="false" autocomplete="off" placeholder="Paste your key" aria-describedby="mapKeyErr mapHelp"><button type="button" data-reveal="mapKey">Show</button></div>
+        <p class="ferr" id="mapKeyErr" hidden></p>
+        <div class="help" id="mapHelp"></div>
+        <div class="help">Sent only to the demo server on this computer.</div>
       </div>
 
       <div class="step">
-        <div class="step-n">2</div>
+        <div class="step-n" aria-hidden="true">2</div>
         <h3>Language model</h3>
         <div class="tiles" role="radiogroup" aria-label="Language model">
           <label class="tile"><input type="radio" name="llm" value="builtin" checked><b>Built-in</b><small>Runs on this computer, no key</small></label>
@@ -224,97 +342,146 @@
           <label class="tile"><input type="radio" name="llm" value="openai"><b>OpenAI</b><small>Your key and model</small></label>
           <label class="tile"><input type="radio" name="llm" value="gemini"><b>Gemini</b><small>Your key and model</small></label>
         </div>
-
         <div id="builtinBox">
-          <div class="help" style="margin:0 0 8px">Waylingo's own fine-tuned model, served by <a href="https://github.com/ggml-org/llama.cpp" target="_blank" rel="noopener">llama.cpp</a>. Run this in a terminal; the first start downloads 1.2 GB.</div>
+          <div class="help" style="margin:0 0 8px">Waylingo's own fine-tuned model, served by llama.cpp (install it with <code>brew install llama.cpp</code>). Start it in a terminal; the first start downloads 1.2 GB.</div>
           <div class="term"><code id="cmd">llama-server -hf rangaraju963/waylingo-parser-qwen3-0.6b --jinja --temp 0 --port 8765</code><button type="button" id="copyCmd">Copy</button></div>
           <label class="lbl" for="llmUrl">Model address</label>
-          <div class="input"><input id="llmUrl" value="http://127.0.0.1:8765/v1" spellcheck="false"></div>
-          <div class="probe" id="probe"><button class="ghost" type="button" id="checkModel">Check connection</button><i class="dot"></i><span id="probeText">Not checked</span></div>
+          <div class="field"><input id="llmUrl" value="http://127.0.0.1:8765/v1" spellcheck="false"></div>
+          <div class="probe" id="probe" role="status"><i class="dot"></i><span id="probeText">Looking for the model server…</span></div>
         </div>
-
         <div id="hostedBox" hidden>
           <label class="lbl" for="llmKey" id="llmKeyLabel">Anthropic API key</label>
-          <div class="input"><input id="llmKey" type="password" spellcheck="false" autocomplete="off" placeholder="Paste your key"><button type="button" data-reveal="llmKey">Show</button></div>
+          <div class="field" id="llmKeyField"><input id="llmKey" type="password" spellcheck="false" autocomplete="off" placeholder="Paste your key" aria-describedby="llmKeyErr"><button type="button" data-reveal="llmKey">Show</button></div>
+          <p class="ferr" id="llmKeyErr" hidden></p>
           <label class="lbl" for="llmModel" id="modelLabel">Model (optional)</label>
-          <div class="input"><input id="llmModel" spellcheck="false" placeholder="claude-sonnet-5-5"></div>
+          <div class="field" id="llmModelField"><input id="llmModel" spellcheck="false" placeholder="claude-sonnet-5-5" aria-describedby="llmModelErr"></div>
+          <p class="ferr" id="llmModelErr" hidden></p>
         </div>
       </div>
 
       <label class="switch"><input type="checkbox" id="remember"> Remember keys on this browser</label>
-      <p class="err" id="setupError" role="alert"></p>
+      <details>
+        <summary>Where do my keys go?</summary>
+        <p>The page sends them only to the demo server running on this computer, which keeps them in memory for the calls you start, writes nothing to disk and logs nothing. In the browser they last until you close the tab, unless you choose to remember them.</p>
+      </details>
+      <p class="ferr" id="connectErr" role="alert" hidden></p>
       <div class="setup-foot">
-        <button class="linkbtn" type="button" id="forget">Forget saved keys</button>
-        <div style="display:flex;gap:8px"><button class="alt" type="button" id="cancelSetup" hidden>Cancel</button><button class="go" type="button" id="saveSetup">Save and continue</button></div>
+        <button class="linkbtn" type="button" id="forget" hidden>Forget saved keys</button>
+        <span></span>
+        <div style="display:flex;gap:8px"><button class="alt" type="button" id="cancelSetup" hidden>Cancel</button><button class="go" type="submit" id="saveSetup">Connect</button></div>
       </div>
-      <div class="privacy">
-        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.5 2.5 3.8v3.9c0 3.2 2.3 5.9 5.5 6.8 3.2-.9 5.5-3.6 5.5-6.8V3.8L8 1.5Z" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>
-        <span>Keys go only to the demo server on this computer, which uses them for the calls you start and keeps nothing. In the browser they last until you close the tab, unless you choose to remember them.</span>
-      </div>
-    </section>
+    </form>
 
-    <!-- Trip -->
-    <section id="tripView" hidden>
-      <form id="tripForm" autocomplete="off">
-        <div class="sign"><div class="sign-face">
-          <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path d="M15 3 5 14h6v13h8V14h6L15 3Z" fill="#fff"/></svg>
-          <div class="sign-text">
-            <label for="q">Where to, and what on the way?</label>
-            <textarea id="q" rows="2" placeholder="Drive to Utrecht, coffee halfway">Drive to Utrecht, coffee halfway</textarea>
-          </div>
-        </div></div>
-        <div class="trip-actions">
-          <button class="go" id="planBtn" type="submit">Plan route</button>
-          <button class="alt" id="parseBtn" type="button" title="Run only the language model: no map calls">Plan only</button>
-        </div>
-        <div class="start">
-          <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="5" fill="#fff" stroke="#1d5fd1" stroke-width="3"/></svg>
-          <span id="startText">From Amsterdam. Click the map to start elsewhere.</span>
-        </div>
-      </form>
-
+    <section id="tripView" class="results" hidden>
+      <div id="out"></div>
       <div class="try" id="tryBox">
-        <h4>Try one of these</h4>
-        <button type="button">Drive to Utrecht, coffee halfway</button>
-        <button type="button">To Rotterdam, fuel after 30 minutes and a McDonald's 15 minutes before we arrive</button>
-        <button type="button">Drive to Berlin, a fast charger every 200 km</button>
-        <button type="button">Take me to Haarlem via Zandvoort, lunch on the way</button>
-        <button type="button">What's the weather tomorrow?</button>
+        <h2>Try one of these</h2>
+        <button type="button" data-q="Drive to Utrecht, coffee halfway">Drive to Utrecht, coffee halfway</button>
+        <button type="button" data-q="To Rotterdam, fuel after 30 minutes and a McDonald's 15 minutes before we arrive">To Rotterdam, fuel after 30 minutes and a McDonald's 15 minutes before we arrive</button>
+        <button type="button" data-q="Drive to Berlin, a fast charger every 200 km">Drive to Berlin, a fast charger every 200 km</button>
+        <button type="button" data-q="Take me to Haarlem via Zandvoort, lunch on the way">Take me to Haarlem via Zandvoort, lunch on the way</button>
+        <button type="button" data-q="What's the weather tomorrow?">What's the weather tomorrow? <small>(not a trip: see how it is refused)</small></button>
       </div>
-
-      <section id="out" aria-live="polite"></section>
     </section>
   </div>
-</aside>
+  <div class="sr" role="status" id="announce"></div>
+</main>
 
 <script>
 const $ = s => document.querySelector(s);
-const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const fmt = p => `${p[1].toFixed(5)}, ${p[0].toFixed(5)}`;            // GeoJSON order is [lng, lat]
-const km = m => m >= 10000 ? `${Math.round(m / 1000)} km` : `${(m / 1000).toFixed(1)} km`;
-const dur = s => s >= 3600 ? `${Math.floor(s / 3600)} h ${Math.round(s % 3600 / 60)} min` : `${Math.max(1, Math.round(s / 60))} min`;
+const kmParts = m => m >= 10000 ? [Math.round(m / 1000), 'km'] : [(m / 1000).toFixed(1), 'km'];
+const durParts = s => s >= 3600 ? [`${Math.floor(s / 3600)} h ${Math.round(s % 3600 / 60)}`, 'min'] : [Math.max(1, Math.round(s / 60)), 'min'];
+const dur = s => durParts(s).join(' ');
+const adds = s => s != null ? `adds ${dur(Math.max(60, s))}` : '';
+const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+const reduced = matchMedia('(prefers-reduced-motion: reduce)');
 const NAMES = { tomtom: 'TomTom', here: 'HERE', builtin: 'built-in model', anthropic: 'Anthropic', openai: 'OpenAI', gemini: 'Gemini' };
 const SIGNUP = { tomtom: ['developer.tomtom.com', 'https://developer.tomtom.com/'], here: ['platform.here.com', 'https://platform.here.com/'] };
 const MODEL_HINT = { anthropic: 'claude-sonnet-5-5', openai: 'for example gpt-5', gemini: 'for example gemini-3-flash' };
+const store = {
+  get(k, s) { try { return (s || localStorage).getItem(k); } catch { return null; } },
+  set(k, v, s) { try { (s || localStorage).setItem(k, v); } catch {} },
+  del(k) { try { localStorage.removeItem(k); sessionStorage.removeItem(k); } catch {} },
+};
+const say = text => { $('#announce').textContent = ''; setTimeout(() => $('#announce').textContent = text, 30); };
 
-/* ---------- Settings ---------- */
-const STORE = 'waylingo-demo-settings';
-const DEFAULTS = { map: { provider: 'tomtom', key: '' }, llm: { kind: 'builtin', key: '', model: '', url: 'http://127.0.0.1:8765/v1' } };
-function load() {
-  for (const get of [() => localStorage, () => sessionStorage]) {
-    try { const v = get().getItem(STORE); if (v) return JSON.parse(v); } catch {}
-  }
-  return null;
+/* ================= Theme ================= */
+const ICON_MOON = '<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z" fill="currentColor"/>';
+const ICON_SUN = '<circle cx="12" cy="12" r="4.5" fill="currentColor"/><g stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></g>';
+const media = matchMedia('(prefers-color-scheme: dark)');
+let themeChoice = store.get('waylingo-demo-theme');                 // 'light', 'dark', or null to follow the system
+const isDark = () => themeChoice ? themeChoice === 'dark' : media.matches;
+
+/* ================= Map ================= */
+let start = [52.3702, 4.8952];
+let conn = null;                                                     // { token, tiles, provider } from the server
+const map = L.map('map', { zoomControl: false, dragging: !L.Browser.mobile, tap: false }).setView([52.2, 5.2], 9);
+L.control.zoom({ position: 'topright' }).addTo(map);
+let base = null;
+function setTiles() {
+  if (base) map.removeLayer(base);
+  const source = conn ? conn.tiles : 'osm';
+  const attribution = source === 'here' ? 'Map &copy; HERE' : source === 'tomtom' ? 'Map &copy; TomTom'
+    : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+  const style = isDark() && source !== 'osm' ? 'dark' : 'light';
+  base = L.tileLayer(`/tiles/${conn ? conn.token : 'public'}/${style}/{z}/{x}/{y}.png`,
+    { maxZoom: 19, attribution, className: source === 'osm' ? 'basemap-osm' : '' }).addTo(map);
+  base.bringToBack();
 }
-function clearSaved() { try { localStorage.removeItem(STORE); sessionStorage.removeItem(STORE); } catch {} }
-function save(remember) { clearSaved(); try { (remember ? localStorage : sessionStorage).setItem(STORE, JSON.stringify(settings)); } catch {} }
-let settings = load();
+const pin = (cls, label) => L.divIcon({ className: '', html: `<div class="pin ${cls}"><i>${label ? `<b>${label}</b>` : ''}</i></div>`, iconSize: [28, 28], iconAnchor: [14, 14] });
+const startPin = L.marker(start, { icon: pin('pin-start'), keyboard: false, zIndexOffset: 500, title: 'Start', alt: 'Start' }).addTo(map);
+const layer = L.layerGroup().addTo(map);
+let altPins = {};                                                    // "stopKey|placeId" -> marker
+const padding = () => innerWidth > 760 ? { paddingTopLeft: [470, 60], paddingBottomRight: [60, 60] } : { padding: [30, 30] };
+function setStart(lat, lng, label) {
+  start = [+lat.toFixed(5), +lng.toFixed(5)];
+  startPin.setLatLng(start);
+  $('#startText').textContent = label || `From ${start[0]}, ${start[1]}.`;
+  say(label || `Start set to ${start[0]}, ${start[1]}.`);
+}
+// A click asks first, so a stray click never moves the start.
+map.on('click', e => {
+  L.popup({ closeButton: false }).setLatLng(e.latlng)
+    .setContent(`<div class="pop-meta">${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}</div><button type="button" class="pop-btn" data-start="${e.latlng.lat},${e.latlng.lng}">Start here</button>`)
+    .openOn(map);
+});
+$('#locBtn').onclick = () => {
+  if (!navigator.geolocation) { $('#startText').textContent = 'This browser cannot share its location. Click the map instead.'; return; }
+  $('#startText').textContent = 'Finding your location…';
+  navigator.geolocation.getCurrentPosition(
+    p => { setStart(p.coords.latitude, p.coords.longitude, 'From your location.'); map.setView(start, Math.max(map.getZoom(), 12)); },
+    e => { $('#startText').textContent = e.code === 1 ? 'Location access was refused. Click the map instead.' : 'Your location is not available. Click the map instead.'; },
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
+};
+
+function applyTheme() {
+  if (themeChoice) document.documentElement.dataset.theme = themeChoice; else delete document.documentElement.dataset.theme;
+  document.documentElement.dataset.dark = isDark() ? '1' : '0';
+  $('#themeIcon').innerHTML = isDark() ? ICON_SUN : ICON_MOON;
+  $('#themeBtn').setAttribute('aria-label', isDark() ? 'Switch to light theme' : 'Switch to dark theme');
+  setTiles();
+  if (current()) render(current().res, { animate: false, fit: false });   // route colours follow the theme
+}
+$('#themeBtn').onclick = () => { themeChoice = isDark() ? 'light' : 'dark'; store.set('waylingo-demo-theme', themeChoice); applyTheme(); };
+media.addEventListener('change', () => { if (!themeChoice) applyTheme(); });
+
+/* ================= Settings and connection ================= */
+const KEY = 'waylingo-demo-settings';
+const DEFAULTS = { map: { provider: 'tomtom', key: '' }, llm: { kind: 'builtin', key: '', model: '', url: 'http://127.0.0.1:8765/v1' } };
+let settings = (() => {
+  for (const s of [localStorage, sessionStorage]) { const v = store.get(KEY, s); if (v) try { return JSON.parse(v); } catch {} }
+  return null;
+})();
 const ready = () => !!(settings && settings.map.key && (settings.llm.kind === 'builtin' || settings.llm.key));
 const picked = n => document.querySelector(`input[name=${n}]:checked`).value;
 
 function showConn() {
-  $('#connBtn').classList.toggle('ready', ready());
-  $('#connLabel').textContent = ready() ? `${NAMES[settings.map.provider]}, ${NAMES[settings.llm.kind]}` : 'Not connected';
+  $('#connBtn').classList.toggle('ready', !!conn);
+  const label = conn ? `${NAMES[settings.map.provider]}, ${NAMES[settings.llm.kind]}` : 'Not connected';
+  $('#connLabel').textContent = label;
+  $('#connBtn').setAttribute('aria-label', `Connection: ${label}. Change keys`);
 }
 function syncSetup() {
   const p = picked('provider'), l = picked('llm');
@@ -327,25 +494,39 @@ function syncSetup() {
     $('#modelLabel').textContent = l === 'anthropic' ? 'Model (optional)' : 'Model';
     $('#llmModel').placeholder = MODEL_HINT[l];
   }
+  probeSoon();
 }
 function view(name) {
   $('#setupView').hidden = name !== 'setup';
   $('#tripView').hidden = name !== 'trip';
+  $('#tripForm').hidden = name !== 'trip';
   if (name === 'trip') { grow(); $('#q').focus({ preventScroll: true }); }
+  probeSoon();
 }
-function openSetup() {
+function fieldError(id, message) {
+  const err = $(`#${id}Err`), field = $(`#${id}Field`), input = $(`#${id}`);
+  err.textContent = message || ''; err.hidden = !message;
+  field && field.classList.toggle('bad', !!message);
+  input.setAttribute('aria-invalid', message ? 'true' : 'false');
+}
+function openSetup(error) {
   const s = settings || DEFAULTS;
   document.querySelector(`input[name=provider][value=${s.map.provider}]`).checked = true;
   document.querySelector(`input[name=llm][value=${s.llm.kind}]`).checked = true;
-  $('#mapKey').value = s.map.key || '';
-  $('#llmKey').value = s.llm.key || '';
-  $('#llmModel').value = s.llm.model || '';
-  $('#llmUrl').value = s.llm.url || DEFAULTS.llm.url;
-  let remembered = false; try { remembered = !!localStorage.getItem(STORE); } catch {}
-  $('#remember').checked = remembered;
-  $('#setupError').textContent = '';
-  $('#cancelSetup').hidden = !ready();
+  $('#mapKey').value = s.map.key || ''; $('#llmKey').value = s.llm.key || '';
+  $('#llmModel').value = s.llm.model || ''; $('#llmUrl').value = s.llm.url || DEFAULTS.llm.url;
+  $('#remember').checked = !!store.get(KEY);
+  $('#forget').hidden = !(store.get(KEY) || store.get(KEY, sessionStorage));
+  ['mapKey', 'llmKey', 'llmModel'].forEach(id => fieldError(id, ''));
+  $('#connectErr').textContent = error || ''; $('#connectErr').hidden = !error;
+  $('#cancelSetup').hidden = !conn;
   syncSetup(); view('setup');
+  $('#body').scrollTop = 0;
+}
+async function connect() {
+  const r = await api('/api/connect', { settings });
+  if (!r.token) { conn = null; showConn(); openSetup(r.error_message); return false; }
+  conn = r; showConn(); setTiles(); return true;
 }
 document.querySelectorAll('input[name=provider], input[name=llm]').forEach(i => i.addEventListener('change', syncSetup));
 document.querySelectorAll('[data-reveal]').forEach(b => b.onclick = () => {
@@ -353,182 +534,318 @@ document.querySelectorAll('[data-reveal]').forEach(b => b.onclick = () => {
   i.type = i.type === 'password' ? 'text' : 'password';
   b.textContent = i.type === 'password' ? 'Show' : 'Hide';
 });
-$('#connBtn').onclick = openSetup;
+$('#connBtn').onclick = () => openSetup();
 $('#cancelSetup').onclick = () => view('trip');
-$('#saveSetup').onclick = () => {
+$('#setupView').onsubmit = async e => {
+  e.preventDefault();
   const l = picked('llm');
   const next = {
     map: { provider: picked('provider'), key: $('#mapKey').value.trim() },
     llm: { kind: l, key: l === 'builtin' ? '' : $('#llmKey').value.trim(), model: l === 'builtin' ? '' : $('#llmModel').value.trim(), url: $('#llmUrl').value.trim() },
   };
-  let err = '';
-  if (!next.map.key) err = `Paste your ${NAMES[next.map.provider]} key to continue.`;
-  else if (l !== 'builtin' && !next.llm.key) err = `Paste your ${NAMES[l]} key, or choose the built-in model.`;
-  else if ((l === 'openai' || l === 'gemini') && !next.llm.model) err = `Enter the ${NAMES[l]} model to use.`;
-  $('#setupError').textContent = err;
-  if (err) return;
-  settings = next; save($('#remember').checked); showConn(); view('trip');
+  ['mapKey', 'llmKey', 'llmModel'].forEach(id => fieldError(id, ''));
+  let bad = null;
+  if (!next.map.key) { fieldError('mapKey', `Paste your ${NAMES[next.map.provider]} key.`); bad = bad || '#mapKey'; }
+  if (l !== 'builtin' && !next.llm.key) { fieldError('llmKey', `Paste your ${NAMES[l]} key, or choose the built-in model.`); bad = bad || '#llmKey'; }
+  if ((l === 'openai' || l === 'gemini') && !next.llm.model) { fieldError('llmModel', `Enter the ${NAMES[l]} model to use.`); bad = bad || '#llmModel'; }
+  if (bad) { $(bad).focus(); return; }
+  $('#saveSetup').disabled = true; $('#saveSetup').textContent = 'Connecting…';
+  settings = next;
+  store.del(KEY); store.set(KEY, JSON.stringify(settings), $('#remember').checked ? localStorage : sessionStorage);
+  const ok = await connect();
+  $('#saveSetup').disabled = false; $('#saveSetup').textContent = 'Connect';
+  if (ok) { view('trip'); say(`Connected: ${$('#connLabel').textContent}.`); }
 };
-$('#forget').onclick = () => { clearSaved(); settings = null; showConn(); openSetup(); };
+$('#forget').onclick = () => { store.del(KEY); settings = null; conn = null; showConn(); setTiles(); openSetup(); say('Saved keys removed.'); };
 $('#copyCmd').onclick = async () => {
   try { await navigator.clipboard.writeText($('#cmd').textContent); $('#copyCmd').textContent = 'Copied'; }
   catch { $('#copyCmd').textContent = 'Select it'; }
   setTimeout(() => $('#copyCmd').textContent = 'Copy', 1600);
 };
-$('#checkModel').onclick = async () => {
-  $('#probe').className = 'probe'; $('#probeText').textContent = 'Checking…';
-  const r = await api('/api/check-model', { url: $('#llmUrl').value });
-  $('#probe').className = 'probe ' + (r.ok ? 'ok' : 'no');
-  $('#probeText').textContent = r.message || r.error_message;
-};
+/* The built-in model is checked automatically while its tile is selected. */
+let probeTimer = null;
+function probeSoon() {
+  clearTimeout(probeTimer);
+  if ($('#setupView').hidden || picked('llm') !== 'builtin') return;
+  probeTimer = setTimeout(async () => {
+    const r = await api('/api/check-model', { url: $('#llmUrl').value });
+    $('#probe').className = 'probe ' + (r.ok ? 'ok' : 'no');
+    $('#probeText').textContent = r.ok ? 'Model server is running.' : 'Not running yet. Start it with the command above; this checks again every few seconds.';
+    probeSoon();
+  }, $('#probe').classList.length > 1 ? 3000 : 200);
+}
+$('#llmUrl').addEventListener('input', () => { $('#probe').className = 'probe'; probeSoon(); });
 
-/* ---------- Map ---------- */
-let start = [52.3702, 4.8952];
-const map = L.map('map', { zoomControl: false }).setView([52.2, 5.2], 9);
-L.control.zoom({ position: 'topright' }).addTo(map);
-L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  maxZoom: 19, className: 'basemap',
-  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-}).addTo(map);
-const pin = (cls, size) => L.divIcon({ className: '', html: `<div class="${cls}"></div>`, iconSize: [size, size], iconAnchor: [size / 2, size / 2] });
-const startPin = L.marker(start, { icon: pin('pin-start', 20), keyboard: false, zIndexOffset: 500 }).addTo(map).bindTooltip('Start');
-const layer = L.layerGroup().addTo(map);
-function padding() { return window.innerWidth > 760 ? { paddingTopLeft: [460, 60], paddingBottomRight: [60, 60] } : { padding: [30, 30] }; }
-map.on('click', e => {
-  start = [+e.latlng.lat.toFixed(5), +e.latlng.lng.toFixed(5)];
-  startPin.setLatLng(start);
-  $('#startText').textContent = `From ${start[0]}, ${start[1]}. Click the map to move it.`;
-});
-
-/* ---------- Calls ---------- */
+/* ================= Calls ================= */
 async function api(path, body) {
   try {
     const r = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     return await r.json();
   } catch { return { error_message: 'The demo server is not running. Start it with: python demo/server.py' }; }
 }
+async function call(path, body) {
+  let r = await api(path, { token: conn && conn.token, ...body });
+  if (r.error_message && /Connect your keys again/.test(r.error_message) && await connect()) r = await api(path, { token: conn.token, ...body });
+  return r;
+}
 function grow() { const q = $('#q'); q.style.height = 'auto'; q.style.height = q.scrollHeight + 'px'; }
 $('#q').addEventListener('input', grow);
+$('#q').addEventListener('focus', () => { $('#tripForm').classList.remove('compact'); grow(); });
 $('#q').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); go('plan'); } });
 $('#tripForm').onsubmit = e => { e.preventDefault(); go('plan'); };
 $('#parseBtn').onclick = () => go('parse');
-document.querySelectorAll('#tryBox button').forEach(b => b.onclick = () => { $('#q').value = b.textContent; grow(); go('plan'); });
+document.querySelectorAll('#tryBox button').forEach(b => b.onclick = () => { $('#q').value = b.dataset.q; grow(); go('plan'); });
+$('#body').addEventListener('scroll', () => $('#tripForm').classList.toggle('scrolled', $('#body').scrollTop > 4));
 
-async function go(kind) {
-  if (!ready()) return openSetup();
-  const query = $('#q').value.trim();
-  if (!query) return $('#q').focus();
-  $('#planBtn').disabled = $('#parseBtn').disabled = true;
-  $('#tryBox').hidden = true;
-  $('#out').innerHTML = `<div class="state"><span class="spinner"></span>${kind === 'plan' ? 'Planning the route' : 'Reading the request'}</div>`;
-  const t0 = performance.now();
-  const res = await api(kind === 'plan' ? '/api/plan' : '/api/parse', { settings, query, lat: start[0], lng: start[1] });
-  const secs = ((performance.now() - t0) / 1000).toFixed(1);
+let past = [], future = [];                                          // reroute history: { res, note }
+const current = () => past[past.length - 1];
+let busyTimer = null;
+function setBusy(on, button, label) {
+  clearInterval(busyTimer);
+  $('#planBtn').disabled = $('#parseBtn').disabled = on;
+  $('#out').classList.toggle('dimmed', on);
+  layer.eachLayer(l => l.getElement && l.getElement() && l.getElement().classList.toggle('route-dim', on));
+  if (!on) return;
+  const original = button.innerHTML, t0 = Date.now();
+  button.dataset.original = original;
+  const tick = () => { const s = Math.round((Date.now() - t0) / 1000); button.innerHTML = `<span class="spin" aria-hidden="true"></span>${label}${s >= 2 ? `, ${s} s` : ''}`; };
+  tick(); busyTimer = setInterval(tick, 1000);
+  say(`${label}.`);
+}
+function doneBusy(button) {
+  clearInterval(busyTimer);
+  if (button && button.dataset.original != null) { button.innerHTML = button.dataset.original; delete button.dataset.original; }
   $('#planBtn').disabled = $('#parseBtn').disabled = false;
-  kind === 'plan' ? showPlan(res, secs) : showParse(res, secs);
+  $('#out').classList.remove('dimmed');
+}
+async function go(kind) {
+  if (!conn) return openSetup();
+  const query = $('#q').value.trim() || $('#q').placeholder;
+  $('#q').value = query; grow();
+  const button = kind === 'plan' ? $('#planBtn') : $('#parseBtn');
+  setBusy(true, button, kind === 'plan' ? 'Planning' : 'Reading');
+  const t0 = performance.now();
+  const res = await call(kind === 'plan' ? '/api/plan' : '/api/parse', { query, lat: start[0], lng: start[1] });
+  const secs = ((performance.now() - t0) / 1000).toFixed(1);
+  doneBusy(button);
+  if (kind === 'parse') return showParse(res, secs);
+  past = res.geojson ? [{ res, note: null, secs }] : []; future = [];
+  render(res, { animate: true, fit: true, secs, focus: 'status' });
+}
+async function reroute(choices, note, button) {
+  const prev = current();
+  if (!prev) return;
+  setBusy(true, button, 'Rerouting');
+  const t0 = performance.now();
+  const res = await call('/api/reroute', { geojson: prev.res.geojson, choices });
+  const secs = ((performance.now() - t0) / 1000).toFixed(1);
+  doneBusy(button);
+  if (!res.geojson) { $('#out').insertAdjacentHTML('afterbegin', problem(res)); say(res.error_message || 'Reroute failed.'); return; }
+  past.push({ res, note, secs }); future = [];
+  render(res, { animate: true, fit: false, secs, focus: 'undo' });
+}
+function undo() {
+  if (past.length < 2) return;
+  future.push(past.pop());
+  render(current().res, { animate: false, fit: false, focus: 'undo', undone: future[future.length - 1].note });
+}
+function redo() {
+  if (!future.length) return;
+  past.push(future.pop());
+  render(current().res, { animate: false, fit: false, focus: 'undo' });
 }
 
-const HELP = {
-  NOT_UNDERSTOOD: 'Describe a trip, for example "Drive to Utrecht, coffee halfway".',
-  NEEDS_DESTINATION: 'Say where you want to go.',
-  NEEDS_CURRENT_LOCATION: 'Click the map to set a start point.',
-  LLM_AUTH: 'The language model key was refused. Check it under the connection button.',
-  PROVIDER_AUTH: 'The map key was refused. Check it under the connection button.',
-  LLM_UNREACHABLE: 'Start the model server, then use Check connection.',
-  GEOCODE_NOT_FOUND: 'The map provider did not find that place. Try a fuller name.',
+/* ================= Rendering ================= */
+const PROBLEMS = {
+  NOT_UNDERSTOOD: ['That is not a trip', 'Describe a trip, for example "Drive to Utrecht, coffee halfway".'],
+  NEEDS_DESTINATION: ['Where to?', 'Say where you want to go.'],
+  NEEDS_CURRENT_LOCATION: ['Where do you start?', 'Click the map or use My location to set a start point.'],
+  GEOCODE_NOT_FOUND: ['Place not found', 'The map provider did not find that place. Try a fuller name.'],
+  LLM_AUTH: ['The language model key was refused', 'Check the key in your connection settings.', 'serious', 'settings'],
+  PROVIDER_AUTH: ['The map key was refused', 'Check the key in your connection settings.', 'serious', 'settings'],
+  LLM_UNREACHABLE: ['The language model is not reachable', 'Start the model server, or check the address in your connection settings.', 'serious', 'settings'],
+  NO_ROUTE: ['No road connects these places', 'Use Undo, or pick another match for the place.', 'serious'],
+  PROVIDER_RATE_LIMITED: ['The map provider asked to slow down', 'Wait a moment and try again.', 'serious'],
 };
 function problem(res) {
-  const help = HELP[res.error_code];
-  return `<div class="problem"><b>${esc(res.error_code || 'Something went wrong')}</b><p>${esc(res.error_message)}</p>${help ? `<p>${esc(help)}</p>` : ''}</div>`;
+  const [title, help, tone, action] = PROBLEMS[res.error_code] || ['Something went wrong', '', 'serious'];
+  return `<div class="problem ${tone || ''}"><div class="row"><b>${esc(title)}</b>${res.error_code ? `<code>${esc(res.error_code)}</code>` : ''}</div>` +
+    `${help ? `<p>${esc(help)}</p>` : ''}${res.error_message && !PROBLEMS[res.error_code] ? `<p>${esc(res.error_message)}</p>` : ''}` +
+    `${action ? '<button type="button" class="small-btn" data-open-settings>Open connection settings</button>' : ''}</div>`;
 }
-const coord = p => `<button type="button" class="coord" data-lat="${p[1]}" data-lng="${p[0]}" title="Show on the map">${fmt(p)}</button>`;
+function calls(g, secs) {
+  const m = g.usage.map_calls, l = g.usage.llm_calls;
+  return `${secs != null ? `${secs} s, ` : ''}${l ? plural(l, 'model call') : 'no model call'}, ${plural(m, 'map call')}`;
+}
 
 function showParse(res, secs) {
-  layer.clearLayers();
-  if (res.status !== 'PARSED') {
-    $('#out').innerHTML = `<div class="state bad"><b>No plan</b> after ${secs} s</div>` + problem(res);
-    return;
-  }
+  layer.clearLayers(); past = []; future = [];
+  $('#tryBox').hidden = res.status === 'PARSED';
+  if (res.status !== 'PARSED') { $('#out').innerHTML = problem(res); say(PROBLEMS[res.error_code]?.[0] || 'No plan.'); return; }
   $('#out').innerHTML =
-    `<div class="state"><b>Understood</b> in ${secs} s, ${res.llm_calls} model call${res.llm_calls === 1 ? '' : 's'}, no map calls</div>` +
-    `<p class="json-note">The plan the language model wrote, checked and compiled. Nothing is looked up on the map yet, so places are still names. Plan route turns them into coordinates.</p>` +
+    `<div class="status"><h2 tabindex="-1">Understood</h2><div class="tele">${secs} s, ${plural(res.llm_calls, 'model call')}, no map calls</div></div>` +
+    `<p class="note">The plan the language model wrote, checked and compiled. Nothing is looked up on the map yet, so places are still names. Plan route turns them into coordinates.</p>` +
     `<pre>${esc(JSON.stringify(res.plan, null, 2))}</pre>`;
+  $('#tripForm').classList.add('compact');
+  $('#out h2').focus();
+  say('Understood. The plan is shown as JSON.');
 }
 
-function drawRoute(coords) {
+function drawRoute(coords, animate) {
+  const css = getComputedStyle(document.documentElement);
   const ll = coords.map(c => [c[1], c[0]]);
-  L.polyline(ll, { color: '#ffffff', weight: 9, opacity: .9, interactive: false }).addTo(layer);
-  const line = L.polyline(ll, { color: '#1d5fd1', weight: 5, opacity: 1, className: 'route-line', interactive: false }).addTo(layer);
-  const el = line.getElement && line.getElement();
+  L.polyline(ll, { color: css.getPropertyValue('--route-casing').trim(), weight: 9, opacity: .9, interactive: false }).addTo(layer);
+  const draw = animate && !reduced.matches;
+  const line = L.polyline(ll, { color: css.getPropertyValue('--route').trim(), weight: 5, opacity: 1, className: draw ? 'route-line' : '', interactive: false }).addTo(layer);
+  const el = draw && line.getElement && line.getElement();
   if (el && el.getTotalLength) {
+    // Dash the line to its own length so it draws in once, then drop the dash so zooming never clips it.
     const len = el.getTotalLength();
-    el.style.strokeDasharray = len; el.style.setProperty('--len', len); el.style.strokeDashoffset = 0;
+    el.style.strokeDasharray = len; el.style.setProperty('--len', len);
+    el.addEventListener('animationend', () => { el.style.strokeDasharray = ''; el.classList.remove('route-line'); }, { once: true });
   }
-  return line;
 }
 
-function showPlan(res, secs) {
-  layer.clearLayers();
+/* What a stop asked for, from the plan: "fuel", "McDonald's". */
+function wanted(g, id) {
+  const r = g.plan && (g.plan.stop_requests || []).find(s => s.id === id);
+  const w = r && r.what;
+  if (!w) return 'place';
+  return w.brand || w.text || String(w.category || 'place').replace(/_/g, ' ');
+}
+/* The place a stop had before it was skipped, from earlier results. */
+function earlierPick(id, occ) {
+  for (let i = past.length - 1; i >= 0; i--) {
+    const f = past[i].res.geojson.features.find(f => f.properties.kind === 'stop' && f.properties.stop_request_id === id && f.properties.occurrence === occ);
+    if (f) return f.properties.pick;
+  }
+  return null;
+}
+const choiceAttr = (choice, note) => `data-choice="${esc(JSON.stringify(choice))}" data-note="${esc(note)}"`;
+function optionRow(stop, p, i, verb) {
+  const choice = { stops: [{ stop_request_id: stop.stop_request_id, occurrence: stop.occurrence, place_id: p.provider_place_id }] };
+  const second = [adds(p.detour_s), p.address].filter(Boolean).join(', ');
+  const key = `${stop.stop_request_id}|${stop.occurrence}|${p.provider_place_id}`;
+  return `<li class="opt" data-pin="${esc(key)}"><span class="n" aria-hidden="true">${i + 1}</span>` +
+    `<div><strong>${esc(p.name)}</strong><small title="${esc(fmt(p.position))}">${esc(second || fmt(p.position))}</small></div>` +
+    `<button type="button" class="small-btn" ${choiceAttr(choice, `${verb} ${p.name}`)} aria-label="Use ${esc(p.name)}${p.detour_s != null ? `, ${adds(p.detour_s)}` : ''}">Use</button></li>`;
+}
+
+function render(res, { animate, fit, secs, focus, undone }) {
+  layer.clearLayers(); altPins = {};
   const g = res.geojson;
-  if (!g) { $('#out').innerHTML = `<div class="state bad"><b>Not planned</b></div>` + problem(res); return; }
+  $('#tryBox').hidden = !!(g && g.features.some(f => f.properties.kind === 'route'));
+  if (!g) { $('#out').innerHTML = problem(res); say(PROBLEMS[res.error_code]?.[0] || 'Not planned.'); return; }
   const failed = res.status === 'FAILED';
-  const title = failed ? 'Not planned' : res.status === 'PARTIAL' ? 'Planned, some stops not found' : 'Planned';
-  let h = `<div class="state ${failed ? 'bad' : ''}"><b>${title}</b> in ${secs} s, ${g.usage.llm_calls} model and ${g.usage.map_calls} map calls</div>`;
+  const latest = current();
+  const rerouted = past.length > 1;
+  // A failure is named once, in its problem box; the status line just says it was not planned.
+  let title = failed ? 'Not planned' : res.status === 'PARTIAL' ? 'Planned, some stops not found' : 'Planned';
+  if (rerouted) title = latest.note || 'Rerouted';
+  if (undone) title = `Undone: ${undone}`;
+  const tele = calls(g, undone ? null : (secs ?? latest?.secs));
+  let h = `<div class="status"><div class="row"><div><h2 tabindex="-1">${esc(title)}</h2><div class="tele">${esc(tele)}</div></div>` +
+    (rerouted ? `<button type="button" class="small-btn" id="undoBtn" aria-label="Undo: ${esc(latest.note || 'last change')}"><svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3 2.5 6.5 6 10M3 6.5h6.5a4 4 0 0 1 0 8H7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Undo</button>` : '') +
+    (future.length ? `<button type="button" class="small-btn" id="redoBtn">Redo</button>` : '') + `</div></div>`;
   if (failed) h += problem(res);
 
   const route = g.features.find(f => f.properties.kind === 'route');
-  const bounds = [];
-  if (route && route.geometry) bounds.push(...drawRoute(route.geometry.coordinates).getLatLngs());
+  const routeCoords = route && route.geometry ? route.geometry.coordinates : [];
+  // Fit the map before drawing, so the drawn line is measured at its final zoom.
+  const bounds = routeCoords.map(c => [c[1], c[0]]);
+  for (const f of g.features) if (f.geometry && f.geometry.type === 'Point') bounds.push([f.geometry.coordinates[1], f.geometry.coordinates[0]]);
+  if (bounds.length && fit) map.fitBounds(L.latLngBounds(bounds), { ...padding(), animate: false });
+  if (routeCoords.length) drawRoute(routeCoords, animate);
+
   const stops = g.features.filter(f => f.properties.kind === 'stop');
   if (route) {
     const detour = stops.reduce((t, f) => t + Math.max(0, f.properties.pick.detour_s || 0), 0);
-    h += `<div class="summary"><div><strong>${km(route.properties.total_m)}</strong><span>distance</span></div>` +
-         `<div><strong>${dur(route.properties.total_s)}</strong><span>drive time</span></div>` +
-         `<div><strong>${stops.length}</strong><span>${stops.length === 1 ? 'stop' : 'stops'}${stops.length ? `, +${dur(detour)}` : ''}</span></div></div>`;
+    const [dv, du] = kmParts(route.properties.total_m), [tv, tu] = durParts(route.properties.total_s);
+    h += `<div class="plate" role="group" aria-label="Trip summary">` +
+      `<div><strong>${dv}<small>${du}</small></strong><span>distance</span></div>` +
+      `<div><strong>${tv}<small>${tu}</small></strong><span>drive time</span></div>` +
+      `<div><strong>${stops.length}</strong><span>${stops.length === 1 ? 'stop' : 'stops'}${stops.length ? `, +${dur(detour)}` : ''}</span></div></div>`;
   }
 
   const items = [];
+  let n = 0;
   for (const f of g.features) {
     const p = f.properties, c = f.geometry && f.geometry.coordinates;
     if (['origin', 'waypoint', 'destination'].includes(p.kind) && c) {
-      if (p.kind !== 'origin') L.marker([c[1], c[0]], { icon: pin('pin-end', 22), zIndexOffset: 400 }).addTo(layer).bindPopup(`<b>${esc(p.text)}</b><br>${fmt(c)}`);
-      bounds.push([c[1], c[0]]);
-      const others = (p.candidates || []).filter(k => k.id !== p.chosen_id).slice(0, 2);
+      const chosen = (p.candidates || []).find(k => k.id === p.chosen_id);
+      const label = p.kind === 'origin' ? 'Start' : (chosen ? chosen.label : p.text);
+      if (p.kind !== 'origin') L.marker([c[1], c[0]], { icon: pin('pin-end'), zIndexOffset: 400, title: label, alt: label }).addTo(layer).bindPopup(`<div class="pop-name">${esc(label)}</div><div class="pop-meta">${fmt(c)}</div>`);
+      const others = (p.candidates || []).filter(k => k.id !== p.chosen_id).slice(0, 4);
+      const id = `opts${n++}`;
+      const wrong = others.length ? `<div class="wrong"><button type="button" class="linkbtn change" aria-expanded="false" aria-controls="${id}" data-label="Not the right place?">Not the right place?</button>` +
+        `<ul class="options" id="${id}" hidden>${others.map(k => {
+          const choice = { locations: [{ role: p.kind, index: p.index ?? null, candidate_id: k.id }] };
+          return `<li class="opt"><div><strong>${esc(k.label)}</strong><small>${fmt(k.position)}</small></div><button type="button" class="small-btn" ${choiceAttr(choice, `Changed to ${k.label}`)} aria-label="Use ${esc(k.label)}">Use</button></li>`;
+        }).join('')}</ul></div>` : '';
       items.push({ at: p.kind === 'origin' ? -1 : p.kind === 'destination' ? Infinity : (p.along_m ?? 0), cls: p.kind === 'destination' ? 'end' : '',
-        html: `<div class="name">${p.kind === 'origin' ? 'Start' : esc(p.text)}</div><div>${coord(c)}</div>` +
-              (others.length ? `<div class="meta">Also matched ${others.map(k => esc(k.label)).join(' and ')}</div>` : '') });
+        html: `<div class="row1"><span class="name">${esc(label)}</span></div><button type="button" class="coord" data-lat="${c[1]}" data-lng="${c[0]}" aria-label="Show ${esc(label)} on the map">${fmt(c)}</button>${wrong}` });
     } else if (p.kind === 'stop') {
-      const k = p.pick.position;
-      L.marker([k[1], k[0]], { icon: pin('pin-stop', 18), zIndexOffset: 600 }).addTo(layer)
-        .bindPopup(`<b>${esc(p.pick.name)}</b>${p.pick.address ? `<br>${esc(p.pick.address)}` : ''}<br>${fmt(k)}`);
-      for (const a of p.alternatives || []) {
-        L.marker([a.position[1], a.position[0]], { icon: pin('pin-alt', 10) }).addTo(layer).bindPopup(`Alternative: <b>${esc(a.name)}</b><br>${fmt(a.position)}`);
-      }
-      const bits = [];
-      if (p.anchor) bits.push(`${dur(p.anchor.cum_s)} into the drive`);
-      if (p.pick.detour_s != null) bits.push(`adds ${dur(Math.max(60, p.pick.detour_s))}`);
-      if (p.beyond_radius) bits.push('nearest match is past the search radius');
+      const k = p.pick.position, id = `opts${n++}`;
+      const stopKey = `${p.stop_request_id}|${p.occurrence}`;
+      L.marker([k[1], k[0]], { icon: pin('pin-stop'), zIndexOffset: 600, title: p.pick.name, alt: p.pick.name }).addTo(layer)
+        .bindPopup(`<div class="pop-name">${esc(p.pick.name)}</div>${p.pick.address ? `<div class="pop-meta">${esc(p.pick.address)}</div>` : ''}<div class="pop-meta">${fmt(k)}</div>`);
+      (p.alternatives || []).forEach((a, i) => {
+        const choice = { stops: [{ stop_request_id: p.stop_request_id, occurrence: p.occurrence, place_id: a.provider_place_id }] };
+        const m = L.marker([a.position[1], a.position[0]], { icon: pin('pin-alt', i + 1), title: `Alternative ${i + 1}: ${a.name}`, alt: `Alternative ${i + 1}: ${a.name}` }).addTo(layer)
+          .bindPopup(`<div class="pop-name">${esc(a.name)}</div><div class="pop-meta">${esc([adds(a.detour_s), a.address].filter(Boolean).join(', '))}</div><div class="pop-meta">${fmt(a.position)}</div>` +
+                     `<button type="button" class="pop-btn" ${choiceAttr(choice, `Switched to ${a.name}`)}>Use this stop</button>`);
+        m.on('click', () => { const row = document.querySelector(`[data-pin="${CSS.escape(`${stopKey}|${a.provider_place_id}`)}"]`); if (row) { row.closest('.options').hidden = false; row.scrollIntoView({ block: 'nearest', behavior: reduced.matches ? 'auto' : 'smooth' }); } });
+        altPins[`${stopKey}|${a.provider_place_id}`] = m;
+      });
+      const bits = [p.anchor ? `${dur(p.anchor.cum_s)} into the drive` : '', adds(p.pick.detour_s), p.beyond_radius ? 'nearest match is past the search radius' : ''].filter(Boolean);
+      const skip = { stops: [{ stop_request_id: p.stop_request_id, occurrence: p.occurrence, skip: true }] };
+      const alts = (p.alternatives || []).map((a, i) => optionRow(p, a, i, 'Switched to')).join('');
+      const opts = `<ul class="options" id="${id}" hidden>${alts}<li class="skip-row"><button type="button" class="linkbtn" ${choiceAttr(skip, `Skipped ${p.pick.name}`)}>Skip this stop</button></li></ul>`;
       items.push({ at: p.anchor ? p.anchor.cum_m : 0, cls: 'stop',
-        html: `<div class="name">${esc(p.pick.name)}</div><div class="meta">${bits.join(', ')}</div><div>${coord(k)}</div>` +
-              (p.alternatives && p.alternatives.length ? `<ul class="alts">${p.alternatives.map(a => `<li><span>${esc(a.name)}</span>${coord(a.position)}</li>`).join('')}</ul>` : '') });
+        html: `<div class="row1"><span class="name">${esc(p.pick.name)}</span>${p.user_choice === 'chosen' ? '<span class="tag">Your pick</span>' : ''}` +
+              `<button type="button" class="small-btn change" aria-expanded="false" aria-controls="${id}" data-label="Change" aria-label="Change ${esc(p.pick.name)}">Change</button></div>` +
+              `<div class="meta">${esc(bits.join(', '))}</div>` +
+              `<button type="button" class="coord" data-lat="${k[1]}" data-lng="${k[0]}" aria-label="Show ${esc(p.pick.name)} on the map">${fmt(k)}</button>${opts}` });
     } else if (p.kind === 'unresolved_stop') {
-      items.push({ at: Infinity - 1, cls: 'missing', html: `<div class="name">Stop not found</div><div class="meta">${esc(p.detail || p.result)}</div>` });
+      const id = `opts${n++}`, options = p.options || [];
+      const what = wanted(g, p.stop_request_id);
+      if (p.result === 'SKIPPED_BY_USER') {
+        const before = earlierPick(p.stop_request_id, p.occurrence) || options[0];
+        const back = before ? { stops: [{ stop_request_id: p.stop_request_id, occurrence: p.occurrence, place_id: before.provider_place_id }] } : null;
+        const list = options.map((o, i) => optionRow(p, o, i, 'Brought back')).join('');
+        items.push({ at: p.anchor ? p.anchor.cum_m : Infinity - 1, cls: 'missing',
+          html: `<div class="row1"><span class="name">${esc(before ? before.name : what)}, skipped</span>` +
+                (back ? `<button type="button" class="small-btn" ${choiceAttr(back, `Brought back ${before.name}`)}>Bring back</button>` : '') + `</div>` +
+                (list ? `<button type="button" class="linkbtn change" aria-expanded="false" aria-controls="${id}" data-label="Other places (${options.length})">Other places (${options.length})</button><ul class="options" id="${id}" hidden>${list}</ul>` : '') });
+      } else {
+        const where = p.anchor ? ` near ${dur(p.anchor.cum_s)} into the drive` : '';
+        items.push({ at: p.anchor ? p.anchor.cum_m : Infinity - 1, cls: 'missing',
+          html: `<div class="row1"><span class="name">No ${esc(what)} found${esc(where)}</span></div><div class="meta">${esc(p.detail || p.result.replace(/_/g, ' ').toLowerCase())}</div>` });
+      }
     }
   }
   items.sort((a, b) => a.at - b.at);
-  if (items.length) h += `<ol class="road">${items.map(i => `<li class="${i.cls}"><span class="mk"></span>${i.html}</li>`).join('')}</ol>`;
+  if (items.length) h += `<ol class="road">${items.map(i => `<li class="${i.cls}"><span class="mk" aria-hidden="true"></span>${i.html}</li>`).join('')}</ol>`;
   for (const a of g.assumptions) h += `<p class="fine">${esc(a)}</p>`;
   for (const w of g.warnings) h += `<p class="fine">${esc(typeof w === 'string' ? w : JSON.stringify(w))}</p>`;
-  if (g.plan) h += `<details><summary>The plan the model wrote</summary><pre>${esc(JSON.stringify(g.plan, null, 2))}</pre></details>`;
-  h += `<details><summary>Full result (GeoJSON)</summary><p class="fine"><button class="ghost" type="button" id="dl">Download trip.geojson</button></p><pre>${esc(JSON.stringify(shorten(g), null, 2))}</pre></details>`;
+  if (g.plan) h += `<details><summary>Plan JSON from the model</summary><pre>${esc(JSON.stringify(g.plan, null, 2))}</pre></details>`;
+  h += `<details><summary>Full result (GeoJSON)</summary><p class="fine"><button class="small-btn" type="button" id="dl">Download trip.geojson</button></p><pre>${esc(JSON.stringify(shorten(g), null, 2))}</pre></details>`;
   h += `<p class="fine">Map data ${esc(g.attribution)}</p>`;
   $('#out').innerHTML = h;
+  $('#tripForm').classList.add('compact');
+  if ($('#undoBtn')) $('#undoBtn').onclick = undo;
+  if ($('#redoBtn')) $('#redoBtn').onclick = redo;
   $('#dl').onclick = () => {
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([JSON.stringify(g, null, 2)], { type: 'application/geo+json' }));
     a.download = 'trip.geojson'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   };
-  if (bounds.length) map.fitBounds(L.latLngBounds(bounds), padding());
+  if (focus === 'undo' && $('#undoBtn')) $('#undoBtn').focus({ preventScroll: true });
+  else if (focus) $('#out h2').focus({ preventScroll: true });
+  if (focus) {
+    const summary = route ? `${kmParts(route.properties.total_m).join(' ')}, ${dur(route.properties.total_s)}, ${plural(stops.length, 'stop')}.` : '';
+    say(`${title}. ${summary}`);
+  }
 }
 function shorten(g) {
   const c = JSON.parse(JSON.stringify(g));
@@ -538,13 +855,32 @@ function shorten(g) {
   }
   return c;
 }
-$('#out').addEventListener('click', e => {
-  const b = e.target.closest('[data-lat]');
-  if (b) map.setView([+b.dataset.lat, +b.dataset.lng], Math.max(map.getZoom(), 15));
-});
 
+/* One click handler for every action button, in the panel and in map popups. */
+document.addEventListener('click', e => {
+  const t = e.target.closest('button');
+  if (!t || t.disabled) return;
+  if (t.dataset.choice) { map.closePopup(); reroute(JSON.parse(t.dataset.choice), t.dataset.note, t); return; }
+  if (t.dataset.start) { const [lat, lng] = t.dataset.start.split(',').map(Number); map.closePopup(); setStart(lat, lng); return; }
+  if (t.hasAttribute('data-open-settings')) { openSetup(); return; }
+  if (t.classList.contains('change')) {
+    const box = document.getElementById(t.getAttribute('aria-controls'));
+    const open = box.hidden;
+    box.hidden = !open; t.setAttribute('aria-expanded', String(open));
+    t.textContent = open ? 'Close' : t.dataset.label;
+    return;
+  }
+  if (t.dataset.lat) map.setView([+t.dataset.lat, +t.dataset.lng], Math.max(map.getZoom(), 15));
+});
+/* Hovering or focusing an alternative lights up its pin on the map. */
+const hot = (row, on) => { const m = row && altPins[row.dataset.pin]; row && row.classList.toggle('hot', on); if (m && m.getElement()) m.getElement().querySelector('.pin').classList.toggle('hot', on); };
+['mouseover', 'focusin'].forEach(ev => document.addEventListener(ev, e => hot(e.target.closest && e.target.closest('.opt[data-pin]'), true)));
+['mouseout', 'focusout'].forEach(ev => document.addEventListener(ev, e => hot(e.target.closest && e.target.closest('.opt[data-pin]'), false)));
+
+/* ================= Start ================= */
+applyTheme();
 showConn();
-ready() ? view('trip') : openSetup();
+if (ready()) connect().then(ok => ok && view('trip')); else openSetup();
 </script>
 </body>
 </html>
