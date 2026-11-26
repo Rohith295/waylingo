@@ -20,7 +20,7 @@ one serving Waylingo's own fine-tuned parser model). Map data never reaches the 
 
 ## Status
 
-Preview, version 0.1.0. The Rust engine, the TomTom and HERE adapters and the
+Preview, version 0.1.1. The Rust engine, the TomTom and HERE adapters and the
 Python, Swift and Kotlin bindings work and are tested. The API may still change
 before 1.0.
 

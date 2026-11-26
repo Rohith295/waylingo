@@ -21,7 +21,7 @@ Waylingo runs in **Android apps (Kotlin), iOS and macOS apps (Swift), Python and
 Rust**: the engine is written in Rust, and the same API is generated for the other
 three languages. [Quick start](quick-start.md) shows each one.
 
-Status: preview, version 0.1.0. The engine, the TomTom and HERE adapters and the
+Status: preview, version 0.1.1. The engine, the TomTom and HERE adapters and the
 Python, Swift and Kotlin bindings work and have tests. Packages are on PyPI, Maven
 Central, crates.io and Swift Package Manager; the API may still change before 1.0.
 

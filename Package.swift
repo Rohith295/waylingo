@@ -5,7 +5,7 @@
 // The release workflow (.github/workflows/release.yml) fills in its URL and checksum
 // and commits the generated Swift source, so depend on a release tag, not a branch:
 //
-//     .package(url: "https://github.com/Rohith295/waylingo", from: "0.1.0")
+//     .package(url: "https://github.com/Rohith295/waylingo", from: "0.1.1")
 //
 // Between releases the URL and checksum below are placeholders and the package
 // does not build from main.
