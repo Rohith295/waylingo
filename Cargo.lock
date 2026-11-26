@@ -2077,7 +2077,7 @@ dependencies = [
 
 [[package]]
 name = "waylingo"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "hmac",
  "serde",
@@ -2093,7 +2093,7 @@ dependencies = [
 
 [[package]]
 name = "waylingo-ffi"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "serde_json",
  "thiserror",
@@ -2105,7 +2105,7 @@ dependencies = [
 
 [[package]]
 name = "waylingo-geo"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "flexpolyline",
  "serde",
@@ -2114,14 +2114,14 @@ dependencies = [
 
 [[package]]
 name = "waylingo-http"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "serde",
 ]
 
 [[package]]
 name = "waylingo-parse"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "serde",
  "serde_json",
@@ -2132,7 +2132,7 @@ dependencies = [
 
 [[package]]
 name = "waylingo-plan"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "schemars",
  "serde",
@@ -2143,7 +2143,7 @@ dependencies = [
 
 [[package]]
 name = "waylingo-providers"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "reqwest",
  "serde",
@@ -2156,7 +2156,7 @@ dependencies = [
 
 [[package]]
 name = "waylingo-reqwest"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "futures-util",
  "reqwest",

@@ -43,8 +43,7 @@ Then choose **Built-in** on the page and use **Check connection**.
   (how far into the drive, how much time it adds, its coordinates and alternatives)
   and the destination. Click a coordinate to zoom to it.
 * **Plan only** stops after the language model: one call, no map calls. It shows the
-  plan as JSON, with places still as names. It needs a waylingo package newer than
-  0.1.0; with 0.1.0 the page says so.
+  plan as JSON, with places still as names. It needs waylingo 0.1.1 or later.
 * The full result GeoJSON can be viewed and downloaded at the bottom.
 
 ## Your keys
