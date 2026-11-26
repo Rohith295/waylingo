@@ -204,7 +204,7 @@ jobs:
           REPO: ${{ github.repository }}
         run: |
           url="https://github.com/$REPO/releases/download/v$VERSION/WaylingoFFI.xcframework.zip"
-          sed -i "s|url: \"[^\"]*\"|url: \"$url\"|; s|checksum: \"[^\"]*\"|checksum: \"$CHECKSUM\"|" Package.swift
+          sed -i "/binaryTarget/ s|url: \"[^\"]*\"|url: \"$url\"|; /binaryTarget/ s|checksum: \"[^\"]*\"|checksum: \"$CHECKSUM\"|" Package.swift
           mkdir -p swift/Sources/Waylingo
           cp artifacts/apple/swift/Sources/Waylingo/Waylingo.swift swift/Sources/Waylingo/
           git config user.name "github-actions[bot]"
