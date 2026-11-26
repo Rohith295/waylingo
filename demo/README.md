@@ -36,15 +36,36 @@ llama-server -hf rangaraju963/waylingo-parser-qwen3-0.6b --jinja --temp 0 --port
 
 Then choose **Built-in** on the page and use **Check connection**.
 
-## What the page shows
+## What you can do
 
 * **Plan route** runs the whole trip: the language model reads the request, then the
   map provider finds the places and the route. The panel lists the start, each stop
-  (how far into the drive, how much time it adds, its coordinates and alternatives)
-  and the destination. Click a coordinate to zoom to it.
+  (how far into the drive, how much time it adds, its coordinates) and the
+  destination. Click a coordinate to zoom to it.
+* **Change a stop**: open **Change** to use one of its alternatives or skip it, and
+  **Bring back** a skipped stop. Alternatives are also on the map; click one and
+  choose **Use this stop**. Each change reroutes from the previous result with no
+  language model call and one map call.
+* **Did you mean**: when a place name matched more than one place, pick another
+  match. This searches the stops again on the new route, still without the language
+  model.
+* **Undo** steps back through your changes.
+* **My location** starts the trip where you are (the browser asks first); or click
+  the map to set the start.
 * **Plan only** stops after the language model: one call, no map calls. It shows the
-  plan as JSON, with places still as names. It needs waylingo 0.1.1 or later.
+  plan as JSON, with places still as names.
+* **Light and dark**: the page follows your system setting; the button next to the
+  connection status switches it.
 * The full result GeoJSON can be viewed and downloaded at the bottom.
+
+## What it loads
+
+Nothing from other websites. The fonts ([Overpass](https://github.com/RedHatOfficial/Overpass),
+SIL Open Font License) and [Leaflet](https://leafletjs.com/) (BSD 2-clause) are in
+`demo/static` with their licenses. Map tiles come through `server.py`: from HERE when
+you use a HERE key, from TomTom when your TomTom key includes map display, and
+otherwise from [OpenStreetMap](https://www.openstreetmap.org/copyright). Routing and
+search need the internet anyway, since they are your map provider's services.
 
 ## Your keys
 

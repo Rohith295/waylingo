@@ -111,6 +111,18 @@ fn route_errors_are_classified() {
         ..status(200)
     };
     assert_eq!(t.parse_route(&empty).unwrap_err().kind, ErrorKind::NoRoute);
+    // No road between the points: TomTom says 400, Waylingo says no route.
+    let unreachable = HttpResponse {
+        body: br#"{"detailedError":{"code":"BAD_INPUT","message":"Engine error while executing route request: NO_ROUTE_FOUND"}}"#.to_vec(),
+        ..status(400)
+    };
+    let e = t.parse_route(&unreachable).unwrap_err();
+    assert_eq!(e.kind, ErrorKind::NoRoute);
+    assert!(!e.retryable);
+    assert_eq!(
+        t.parse_route(&status(400)).unwrap_err().kind,
+        ErrorKind::BadRequest
+    );
     let garbage = HttpResponse {
         body: b"<html>".to_vec(),
         ..status(200)

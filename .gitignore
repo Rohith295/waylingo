@@ -26,3 +26,7 @@ waylingo-output*.geojson
 /WaylingoFFI.xcframework*
 /.build/
 /book/book/
+
+# Python bytecode
+__pycache__/
+*.pyc
