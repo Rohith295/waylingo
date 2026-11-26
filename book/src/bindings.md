@@ -12,8 +12,10 @@ commands; this chapter explains the shape of the API and the choices behind it.
   (`crates/waylingo-ffi/tests/kotlin-jvm`).
 * **iOS and Android:** the release workflow builds the iOS XCFramework and the Android
   library (AAR); neither has yet been run in an app on a device.
-* **Packages:** none published. `Package.swift` holds placeholder URL and checksum values
-  until the release workflow fills them in.
+* **Packages:** version 0.1.0 is on PyPI (`waylingo`), Maven Central
+  (`io.github.rohith295:waylingo-android`) and Swift Package Manager (this repository).
+  On `main`, `Package.swift` holds placeholder URL and checksum values; the release
+  workflow fills them in on each release tag, so depend on a version, not on `main`.
 
 ## The API
 

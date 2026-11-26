@@ -85,8 +85,8 @@ source, tags the version, creates the GitHub Release with the XCFramework and th
 and publishes to PyPI (trusted publishing, no stored token) and Maven Central. Each
 publish job runs in a GitHub environment that can require a manual approval.
 
-Not done yet, per the bindings guide: a first run of these workflows on GitHub, the
-PyPI trusted publisher, the Maven Central namespace and the signing key.
+Version 0.1.0 was released this way. The crates are published to crates.io by hand
+with `cargo publish`, not by the workflow.
 
 ## Pull requests
 
